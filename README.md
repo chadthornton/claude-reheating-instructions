@@ -12,7 +12,7 @@ AI coding sessions have limited context windows. When you switch tools, hit toke
 
 ## The Solution
 
-The Reheat plugin creates structured handoff documents (`HANDOFF.md`) that capture everything needed for seamless continuation. Think of it like reheating leftover food—you're warming up the context so it's ready to serve again.
+The Reheat plugin creates structured handoff documents (`RESUME.md`) that capture everything needed for seamless continuation. Think of it like reheating leftover food—you're warming up the context so it's ready to serve again.
 
 ## Features
 
@@ -80,7 +80,7 @@ When you're ready to end a session or want to document progress:
 /reheat:save-quick
 ```
 
-Claude will analyze the current state, review what's been done, and create a detailed `HANDOFF.md` file.
+Claude will analyze the current state, review what's been done, and create a detailed `RESUME.md` file plus diagnostic logs in `.context/`.
 
 ### Resuming from a Handoff
 
@@ -102,7 +102,7 @@ The resume command automatically adapts based on:
 - How recently it was created
 - Number of sections and depth of content
 
-You can also just tell any AI agent: "Read HANDOFF.md and continue the work" and it will understand the context.
+You can also just tell any AI agent: "Read RESUME.md and continue the work" and it will understand the context.
 
 ## Best Practices
 
@@ -144,7 +144,7 @@ in utils/validation.ts:23 that checks format with /^[^@]+@[^@]+$/"
 Here's what a comprehensive handoff looks like:
 
 ```markdown
-# HANDOFF.md
+# RESUME.md
 
 ## OBJECTIVE
 Implement JWT-based authentication with token refresh for user API
@@ -241,7 +241,7 @@ You're halfway through implementing a feature but need to switch contexts:
 ```
 You: /reheat:save
 Claude: [Analyzes current state, creates comprehensive handoff]
-Claude: ✅ Created comprehensive handoff at HANDOFF.md
+Claude: ✅ Created comprehensive handoff at RESUME.md
 ```
 
 Later, in a new session:
@@ -268,7 +268,7 @@ You've been debugging but need to stop:
 
 ```
 You: /reheat:save-quick
-Claude: ✅ Created quick handoff at HANDOFF.md
+Claude: ✅ Created quick handoff at RESUME.md
 
 Essential context captured:
 - Investigating 500 error on checkout endpoint

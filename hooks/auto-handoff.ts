@@ -49,17 +49,17 @@ export const beforeExit: Hook<HandoffHookContext> = async (context) => {
     await task({
       subagent_type: "general-purpose",
       description: `Auto-create ${handoffType} handoff`,
-      prompt: `Use the /reheating:${handoffType} skill to document the current session's work before exiting.
+      prompt: `Use the /reheat:${handoffType} skill to document the current session's work before exiting.
 
 Session context:
 - Token usage: ${conversationTokens}
 - Create ${handoffType === "create" ? "comprehensive" : "quick"} documentation
 - Focus on what was accomplished, what failed, and what's next
 
-Execute /reheating:${handoffType} now.`,
+Execute /reheat:${handoffType} now.`,
     });
 
-    console.log(`   ✅ Created ${handoffType} handoff at HANDOFF.md`);
+    console.log(`   ✅ Created ${handoffType} handoff at RESUME.md`);
   } catch (error) {
     console.error("   ❌ Auto-handoff failed:", error);
   }
@@ -78,7 +78,7 @@ export const onContextWarning: Hook<HandoffHookContext> = async (context) => {
     await task({
       subagent_type: "general-purpose",
       description: "Emergency handoff before context limit",
-      prompt: `We're approaching context limits. Use /reheating:create to document all current work immediately.
+      prompt: `We're approaching context limits. Use /reheat:create to document all current work immediately.
 
 This is critical - we're about to lose context. Capture:
 - What we're working on
@@ -86,7 +86,7 @@ This is critical - we're about to lose context. Capture:
 - What failed and why
 - What's next
 
-Execute /reheating:create now.`,
+Execute /reheat:create now.`,
     });
 
     console.log("   ✅ Emergency handoff created");
@@ -100,7 +100,7 @@ Execute /reheating:create now.`,
 export const onSessionStart: Hook<HandoffHookContext> = async (context) => {
   const { workingDirectory, task } = context;
 
-  const handoffPath = path.join(workingDirectory, "HANDOFF.md");
+  const handoffPath = path.join(workingDirectory, "RESUME.md");
 
   if (!fs.existsSync(handoffPath)) {
     console.log("🔥 No handoff found, starting fresh");
@@ -120,18 +120,18 @@ export const onSessionStart: Hook<HandoffHookContext> = async (context) => {
     await task({
       subagent_type: "general-purpose",
       description: `Auto-resume from ${ageHours.toFixed(1)}h old handoff`,
-      prompt: `A handoff document exists from ${ageHours.toFixed(1)} hours ago. Use /reheating:${resumeType} to resume the work.
+      prompt: `A handoff document exists from ${ageHours.toFixed(1)} hours ago. Use /reheat:${resumeType} to resume the work.
 
 Handoff age: ${ageHours.toFixed(1)} hours
 Resume mode: ${resumeType === "resume-quick" ? "Quick (context still fresh)" : "Full (deep rebuild needed)"}
 
-Execute /reheating:${resumeType} now.`,
+Execute /reheat:${resumeType} now.`,
     });
 
     console.log(`   ✅ Resumed via ${resumeType}`);
   } catch (error) {
     console.error("   ❌ Auto-resume failed:", error);
-    console.log("   💡 You can manually resume with /reheating:resume");
+    console.log("   💡 You can manually resume with /reheat:resume");
   }
 };
 
@@ -151,9 +151,9 @@ export const onCheckpoint: Hook<HandoffHookContext> = async (context) => {
       description: "Periodic checkpoint handoff",
       prompt: `Creating periodic checkpoint after ${sessionDuration / 60} hours of work.
 
-Use /reheating:quick to document current progress as a safety checkpoint.
+Use /reheat:quick to document current progress as a safety checkpoint.
 
-Execute /reheating:quick now.`,
+Execute /reheat:quick now.`,
     });
 
     console.log("   ✅ Checkpoint handoff created");

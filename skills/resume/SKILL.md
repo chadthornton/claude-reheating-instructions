@@ -10,9 +10,9 @@ model: sonnet
 
 ## Step 1: Analyze Handoff Type
 
-Before spawning the subagent, check the HANDOFF.md file to determine which resume approach is appropriate.
+Before spawning the subagent, check the RESUME.md file to determine which resume approach is appropriate.
 
-Use the Read tool to check HANDOFF.md:
+Use the Read tool to check RESUME.md:
 - **File size** - Quick handoffs are typically <10KB, comprehensive handoffs are >20KB
 - **Section count** - Quick handoffs have fewer sections
 - **Content markers** - Look for "QUICK HANDOFF" or comprehensive section structure
@@ -51,7 +51,7 @@ Use this quick resume when:
 
 ### 1. Speed Read (5 minutes)
 
-Read HANDOFF.md focusing on these sections in order:
+Read RESUME.md focusing on these sections in order:
 
 **Priority 1: Action-Focused**
 - CURRENT STATUS - Where are we?
@@ -169,7 +169,7 @@ Research shows that developer onboarding takes 3-6 months without proper knowled
 
 ## Your Task
 
-1. **Read and thoroughly understand the HANDOFF.md file** in the project root
+1. **Read and thoroughly understand the RESUME.md file** in the project root
 2. **Rebuild the mental model** - understand HOW things work, not just what exists
 3. **Learn from failures** - understand why approaches failed so you don't repeat them
 4. **Proceed intelligently** - build on previous work, don't start over
@@ -433,12 +433,12 @@ Now execute the resume process following all phases above."
 After the subagent begins the resume process (either quick or deep), they will:
 
 **Quick Resume:**
-1. Speed-read HANDOFF.md (5 minutes, action-focused)
+1. Speed-read RESUME.md (5 minutes, action-focused)
 2. Provide brief confirmation of status and next action
 3. Begin working immediately on Priority 1 task
 
 **Deep Resume:**
-1. Deep-read HANDOFF.md (30 minutes, cognitive rebuilding)
+1. Deep-read RESUME.md (30 minutes, cognitive rebuilding)
 2. Confirm comprehensive understanding with detailed response
 3. Ask for your confirmation before proceeding
 4. Begin work based on documented next steps

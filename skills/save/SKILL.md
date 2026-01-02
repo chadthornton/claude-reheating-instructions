@@ -1,67 +1,90 @@
 ---
 name: save
-description: Save comprehensive handoff documentation with full context, mental models, and failure analysis
+description: Save comprehensive handoff documentation with parallel multi-agent analysis
 model: sonnet
 ---
 
 # Save Comprehensive Handoff Documentation
 
-**EXECUTION STRATEGY: This task requires focused analysis in a clean context window for best results.**
+**EXECUTION STRATEGY: Multi-agent parallel architecture for comprehensive context capture.**
 
-## Step 1: Spawn Focused Subagent
+## Overview
 
-Use the Task tool to execute this handoff creation in a fresh context:
+This skill spawns 4 specialized agents in parallel to create:
+1. **RESUME.md** - Primary handoff document (12 sections)
+2. **.context/failures.log** - Chronological failure analysis
+3. **.context/decisions.log** - Architectural decision records
+4. **.context/learnings.log** - Key insights and patterns
 
-```
-Use Task tool with these parameters:
+## Step 1: Archive Existing Handoff
 
-subagent_type: "general-purpose"
-description: "Create comprehensive handoff in fresh context"
-model: "sonnet"
-prompt: "You are creating a comprehensive handoff document that enables any AI coding agent to seamlessly continue work from where you left off.
+Before creating new handoff, archive the old one if it exists:
 
-## Why This Matters
-
-Research shows that context switching can consume up to 20% of cognitive capacity, and poor knowledge transfer costs organizations $2.1M annually. This handoff preserves both explicit knowledge (facts, locations) and tacit knowledge (reasoning, mental models) to enable immediate productivity in the next session.
-
-## Your Task
-
-Create a detailed HANDOFF.md file in the project root that documents the current state, progress, and complete cognitive context of the work.
-
-**IMPORTANT - Archive Existing Handoff:**
-Before creating the new HANDOFF.md, check if one already exists. If it does:
-1. Create a `handoff-archive/` directory if it doesn't exist
-2. Move the existing HANDOFF.md to `handoff-archive/HANDOFF-YYYYMMDD-HHMM.md` with the current timestamp
-3. Inform the user that the previous handoff was archived
-
-Example:
 ```bash
-if [ -f HANDOFF.md ]; then
+if [ -f RESUME.md ]; then
   mkdir -p handoff-archive
   timestamp=$(date +%Y%m%d-%H%M)
-  mv HANDOFF.md "handoff-archive/HANDOFF-${timestamp}.md"
-  echo "📦 Previous handoff archived to handoff-archive/HANDOFF-${timestamp}.md"
+  mv RESUME.md "handoff-archive/RESUME-${timestamp}.md"
+  echo "📦 Previous handoff archived to handoff-archive/RESUME-${timestamp}.md"
+fi
+
+# Also archive .context/ if it exists
+if [ -d .context ]; then
+  mkdir -p handoff-archive
+  timestamp=$(date +%Y%m%d-%H%M)
+  mv .context "handoff-archive/.context-${timestamp}"
+  echo "📦 Previous .context/ archived to handoff-archive/.context-${timestamp}/"
 fi
 ```
 
-## Document Structure
+## Step 2: Spawn 4 Parallel Agents
+
+Use the Task tool to spawn all 4 agents in parallel. Each agent works independently in fresh context.
+
+### Agent 1: Resume Builder
+
+```
+subagent_type: "general-purpose"
+description: "Build primary RESUME.md handoff"
+model: "sonnet"
+run_in_background: true
+prompt: "You are Agent 1 of 4 in a parallel handoff creation system. Your job is to create the primary RESUME.md file that serves as the main entry point for resuming work.
+
+## Your Role
+
+Create a comprehensive RESUME.md that documents:
+- What we're building and why
+- Current status and progress
+- Mental model of how the system works
+- Next steps and priorities
+- Technical context and setup
+
+**DO NOT document:**
+- Failed approaches (Agent 2 handles this → .context/failures.log)
+- Decision rationale (Agent 3 handles this → .context/decisions.log)
+- Deep insights (Agent 4 handles this → .context/learnings.log)
+
+Instead, REFERENCE these logs where appropriate:
+- "See .context/failures.log for attempts that didn't work"
+- "See .context/decisions.log for architectural rationale"
+- "See .context/learnings.log for key insights"
+
+---
+
+## RESUME.md Structure
+
+Create a file with these sections:
 
 ### 1. OBJECTIVE & CONTEXT
 
 **What we're building:**
-- Main goal or feature being worked on
-- Why this work matters (business value, user impact)
+- Main goal or feature
+- Why this work matters
 - What problem it solves
-
-**Domain context:**
-- Key domain concepts a newcomer needs to understand
-- Critical business rules or constraints
-- User workflows or use cases this touches
 
 **Success criteria:**
 - How will we know this is done?
 - What does "working" look like?
-- Any acceptance criteria or requirements
 
 ---
 
@@ -114,244 +137,36 @@ Assumption: Refresh tokens are stored in DB for invalidation
 Unverified: What happens if user changes password mid-session?
 ```
 
----
-
-### 4. WHAT FAILED (Critical for Learning)
-
-> **This is the most valuable section.** Failed approaches save hours of future work.
-
-For each failed attempt, document:
-
-**❌ Attempt [N]: [Brief description]**
-
-**What I tried:**
-```
-[Actual code or approach attempted]
-```
-
-**Error encountered:**
-```
-[Exact error message - copy/paste, don't paraphrase]
-```
-
-**Why it failed:**
-- Root cause (not just symptoms)
-- What assumption was wrong?
-- What did I misunderstand?
-
-**What I learned:**
-- Key insight from this failure
-- What I'd do differently now
-- What this reveals about the system
-
-**Why retry would fail:**
-- What would need to be different?
-- Is there a better approach?
-
-Example:
-```
-❌ Attempt 1: App-level JWT middleware
-
-What I tried:
-app.use(jwtMiddleware);  // Apply globally to all routes
-
-Error:
-TokenExpiredError: jwt expired
-    at JsonWebTokenError.verify (node_modules/jsonwebtoken/verify.js:147:19)
-    at middleware/auth.ts:23:28
-
-Why it failed:
-- Middleware runs on EVERY request, including auth routes
-- Auth routes need to work BEFORE tokens exist
-- Token refresh endpoint couldn't run because it needed a valid token to refresh a token (circular dependency)
-
-What I learned:
-- Middleware needs to exclude certain routes, OR
-- Auth routes should be defined before middleware, OR
-- Better: Only protect specific routes that need auth
-
-Mental model correction:
-My mental model was "protect everything by default, allow some routes"
-Reality: "Allow everything by default, protect specific routes that need it"
-
-Why retry would fail:
-Simply moving middleware order won't fix this. Need route-specific middleware instead:
-router.get('/protected', authMiddleware, handler)
-```
+**Failed approaches:** See .context/failures.log for detailed analysis of what didn't work.
 
 ---
 
-### 5. KEY DECISIONS (Architecture Decision Records)
+### 4. CURRENT ISSUES
 
-> **Document WHY, not just what**
-
-For each significant decision, use this format:
-
-**Decision:** [What was decided]
-
-**Context:** What situation prompted this decision?
-
-**Options considered:**
-1. Option A - [description]
-2. Option B - [description]
-3. Option C - [description]
-
-**Chosen:** Option [X]
-
-**Rationale:**
-- Why this option over others?
-- What factors were most important?
-- What trade-offs are we accepting?
-
-**Consequences:**
-- Positive: What does this enable?
-- Negative: What limitations does this create?
-- Neutral: What does this commit us to?
-
-**Rejected alternatives and why:**
-- Option Y rejected because: [specific reason]
-- Option Z rejected because: [specific reason]
-
-Example:
-```
-Decision: Use JWT tokens instead of server-side sessions
-
-Context: Need authentication for REST API consumed by mobile apps and web clients
-
-Options considered:
-1. Server-side sessions with Redis
-2. JWT tokens (stateless)
-3. Database-backed sessions
-
-Chosen: JWT tokens
-
-Rationale:
-- Stateless: easier to scale horizontally
-- Works naturally with mobile clients
-- No Redis dependency to manage
-- Industry standard for API authentication
-
-Consequences:
-- Positive: Can scale without session store, works across services
-- Negative: Can't invalidate access tokens before expiry (solved with short 15min expiry + refresh tokens)
-- Neutral: Commits us to token-based flow, all clients must handle refresh logic
-
-Rejected alternatives:
-- Server sessions: Would require sticky sessions or Redis, adds operational complexity
-- DB sessions: Adds database load on every request, defeats purpose of stateless API
-```
-
----
-
-### 6. ROOT CAUSE ANALYSIS (Not Just Symptoms)
-
-> **Critical:** Document ROOT CAUSES, not surface symptoms
-
-**Active Issues:**
+List active bugs or blockers. For each:
 
 **Issue [N]: [Brief description]**
 
-**Surface symptom:**
+**Symptom:**
 - What's the visible problem?
 
-**Actual root cause:**
+**Root cause (if known):**
 - What's really causing this?
-- Use "5 Whys" if needed
 
-**Reproduction steps (minimal):**
+**Reproduction steps:**
 ```
 1. [Exact command or action]
 2. [Expected behavior]
 3. [Actual behavior]
-4. [Error message or unexpected output]
 ```
 
-**Why this breaks the mental model:**
-- What expectation does this violate?
-- What should happen vs. what does happen?
-
-**Debugging already tried:**
-- What did I check?
-- What did I rule out?
-- Where did the trail go cold?
-
-Example:
-```
-Issue 1: POST /api/refresh returns 500
-
-Surface symptom:
-Endpoint crashes with 500 error
-
-Actual root cause:
-JWT verification throws when decoding but error isn't caught, crashing the handler before we can return proper error response
-
-Reproduction:
-1. curl -X POST http://localhost:3000/api/refresh -d '{"refreshToken":"invalid"}'
-2. Expected: 401 {"error": "Invalid refresh token"}
-3. Actual: 500 {"error": "Cannot read property 'id' of undefined"}
-4. Stack trace points to auth.ts:67 where we access decoded.id
-
-Why this breaks the mental model:
-I assumed jwt.verify() would return null on invalid token
-Reality: It throws an exception that needs try/catch
-
-Debugging tried:
-✓ Confirmed token is reaching the endpoint (logged req.body)
-✓ Verified JWT_SECRET is set correctly
-✓ Checked that jwt.verify is imported properly
-✗ Haven't tried: wrapping in try/catch block
-✗ Haven't tried: using jwt.decode() first to inspect token
-```
+**Debugging status:**
+- What's been checked?
+- What's been ruled out?
 
 ---
 
-### 7. HIDDEN DEPENDENCIES & ASSUMPTIONS
-
-> **Make implicit knowledge explicit**
-
-**Assumptions currently made:**
-- [ ] [Assumption 1] - Verified? Yes/No
-- [ ] [Assumption 2] - Verified? Yes/No
-
-**Hidden dependencies:**
-- What must be true for this to work?
-- What external systems are involved?
-- What timing or order dependencies exist?
-
-**Undocumented constraints:**
-- Performance limits?
-- Data size limits?
-- Concurrency assumptions?
-
-**Tribal knowledge:**
-- What would only someone familiar with this codebase know?
-- What workarounds or quirks exist?
-- What "obvious" things aren't documented?
-
-Example:
-```
-Assumptions:
-- [X] Database is PostgreSQL 12+ (Verified: using RETURNING clause)
-- [ ] Email service is reliable (Not verified: no retry logic)
-- [X] Users have unique emails (Verified: DB constraint exists)
-- [ ] Tokens fit in HTTP header (Not verified: could exceed limits with claims)
-
-Hidden dependencies:
-- JWT_SECRET must be same across all instances (or tokens break)
-- Database must be initialized with migrations before app starts
-- Email service requires SMTP credentials in environment
-
-Tribal knowledge:
-- The "users" table was renamed from "accounts" in migration 003
-- We're soft-deleting users (deleted_at column) not actually removing
-- The API responses include snake_case for legacy client compatibility
-```
-
----
-
-### 8. NEXT STEPS (Prioritized & Concrete)
-
-> **Actionable, specific, ordered by importance**
+### 5. NEXT STEPS (Prioritized & Concrete)
 
 **Priority 1: [Critical/Blocking]**
 - [ ] Task description
@@ -368,227 +183,85 @@ Tribal knowledge:
 **Priority 3: [Nice to have]**
 - [ ] Task description
 
-**Questions that need answering:**
-1. [Question] - affects: [what decision]
-2. [Question] - blocks: [what task]
-
 **Blockers:**
 - [ ] [Blocker description] - who can unblock?
 
-Example:
-```
-Priority 1: Fix refresh token endpoint [CRITICAL]
-- [ ] Wrap jwt.verify() in try/catch in routes/auth.ts:65
-  - Why urgent: Crashing in production on invalid tokens
-  - Unblocks: Can't test token refresh flow until this works
-  - Complexity: Low (5 min fix)
-  - Start at: routes/auth.ts:65
-
-Priority 2: Implement auth middleware [IMPORTANT]
-- [ ] Create middleware/auth.ts with verifyAccessToken() function
-  - Depends on: Priority 1 (need working token verification)
-  - Success: Can protect routes with authMiddleware
-  - Complexity: Medium (1 hour)
-  - Pattern: See middleware/cors.ts for structure
-
-Priority 3: Add rate limiting [NICE TO HAVE]
-- [ ] Install express-rate-limit and add to auth routes
-  - Prevents: Brute force attacks
-  - Complexity: Low (30 min)
-  - Docs: https://npmjs.com/package/express-rate-limit
-
-Questions:
-1. Should tokens persist across password changes? - affects: token invalidation strategy
-2. Do we need multi-device sessions? - affects: whether refresh tokens are per-device
-
-Blockers:
-None currently
-```
-
 ---
 
-### 9. TECHNICAL CONTEXT
+### 6. TECHNICAL CONTEXT
 
 #### Code Architecture
 
 **Project structure:**
 ```
 src/
-├── routes/auth.ts          - Login, register, refresh endpoints
-├── services/jwt.ts         - Token generation/verification
-├── middleware/auth.ts      - Auth middleware (NOT IMPLEMENTED)
-└── models/User.ts          - User model with Sequelize
+├── routes/       - [Brief description]
+├── services/     - [Brief description]
+└── models/       - [Brief description]
 ```
 
 **Key files and their roles:**
 
-**[routes/auth.ts](routes/auth.ts)**
-- What it does: Handles authentication endpoints
-- Entry points: POST /register (line 8), POST /login (line 34), POST /refresh (line 60)
-- Dependencies: services/jwt.ts, models/User.ts
-- Status: Login works, refresh is broken
-
-**[services/jwt.ts](services/jwt.ts)**
-- What it does: JWT token operations
-- Key functions:
-  - `generateAccessToken(userId: string): string` (line 12)
-  - `generateRefreshToken(userId: string): string` (line 20)
-  - `verifyAccessToken(token: string): {id: string} | null` (line 28)
-- Status: Generation works, verification needs try/catch
-
-**Important functions with signatures:**
-```typescript
-// services/jwt.ts:12
-function generateAccessToken(userId: string): string
-// Creates 15min JWT with payload {id: userId}, signed with JWT_SECRET
-
-// models/User.ts:45
-async function User.findByEmail(email: string): Promise<User | null>
-// Queries users table with WHERE email = $1
-
-// models/User.ts:52
-async function User.comparePassword(password: string): Promise<boolean>
-// Uses bcrypt.compare() with stored hash
-```
+**[filename.ts](path/to/filename.ts)**
+- What it does: [Brief description]
+- Key functions: [list with line numbers]
+- Status: [working/broken/in-progress]
 
 #### Data Models
 
-**User Model:**
-```typescript
-{
-  id: UUID (primary key)
-  email: string (unique)
-  password_hash: string
-  refresh_token?: string  // Current refresh token
-  created_at: timestamp
-  updated_at: timestamp
-}
-```
-
-**JWT Payload (Access Token):**
-```typescript
-{
-  id: string,          // User ID
-  iat: number,         // Issued at
-  exp: number          // Expires (15 min from iat)
-}
-```
+Document key data structures with their schemas.
 
 #### Environment & Setup
 
 **Required environment variables:**
 ```bash
-JWT_SECRET=your-secret-key              # For access tokens
-JWT_REFRESH_SECRET=your-refresh-secret  # For refresh tokens (MUST BE DIFFERENT)
-DATABASE_URL=postgresql://localhost/myapp
-NODE_ENV=development
+VAR_NAME=description
 ```
-
-**Dependencies:**
-- jsonwebtoken@^9.0.0 - JWT operations
-- bcrypt@^5.1.0 - Password hashing
-- express@^4.18.0 - Web framework
-- sequelize@^6.35.0 - ORM
 
 **Setup commands:**
 ```bash
-npm install                    # Install dependencies
-npm run migrate               # Run database migrations
-npm run seed                  # Create test user
-npm run dev                   # Start server on :3000
+npm install
+npm run dev
 ```
 
 **Database state:**
-```bash
-# Applied migrations:
-20260101_create_users_table.sql
-20260101_add_refresh_token_to_users.sql
-
-# Test data:
-User: test@example.com / password123
-```
+- Applied migrations: [list]
+- Test data: [brief description]
 
 #### Testing
 
-**Current test coverage:**
-- No automated tests exist yet
-
 **How to test manually:**
 ```bash
-# Register
-curl -X POST http://localhost:3000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"new@example.com","password":"test123"}'
-
-# Login
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","password":"password123"}'
-
-# Refresh (currently broken)
-curl -X POST http://localhost:3000/api/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{"refreshToken":"eyJ..."}'
+# Example commands
+curl -X POST http://localhost:3000/api/endpoint
 ```
 
 **Tests that need writing:**
-- [ ] POST /register success
-- [ ] POST /register with duplicate email (should 400)
-- [ ] POST /login with valid credentials
-- [ ] POST /login with invalid credentials
-- [ ] POST /refresh with valid token
-- [ ] POST /refresh with expired token
-- [ ] POST /refresh with invalid token
+- [ ] Test description
+- [ ] Test description
 
 ---
 
-### 10. IMPORTANT NOTES & GOTCHAS
+### 7. IMPORTANT NOTES & GOTCHAS
 
 **Non-obvious behavior:**
-- JWT_SECRET and JWT_REFRESH_SECRET MUST be different values
-  - Security issue: if same, refresh token can be used as access token
-  - Location: config/env.ts:12-13
-
-- Password hashing uses bcrypt with 10 rounds
-  - Don't change without re-hashing all passwords
-  - Location: services/auth.ts:8
-
-- Token expiry uses string format ("15m", "7d"), not milliseconds
-  - Easy to get wrong: 900 (number) vs "15m" (string)
-  - Library: jsonwebtoken
+- [Thing] works differently than expected
+  - Location: [file:line]
+  - Why: [explanation]
 
 **Performance considerations:**
-- JWT verification is synchronous (blocks event loop)
-- For >1000 req/s, consider async version
-- Current load: <100 req/s, so not a concern yet
+- [Concern and mitigation]
 
 **Security concerns:**
-- ⚠️ Refresh tokens stored as plaintext in database
-  - Should hash them like passwords
-  - Risk: DB compromise leaks long-lived tokens
-  - Mitigation: Short refresh expiry (7 days)
-
-- ⚠️ No rate limiting on login endpoint
-  - Vulnerable to brute force
-  - Add express-rate-limit before production
-
-- Error messages leak user existence
-  - "Invalid password" vs "User not found"
-  - Should both return "Invalid credentials"
-  - Location: routes/auth.ts:42
+- ⚠️ [Issue and risk level]
 
 **Technical debt:**
-- Quick fix in auth.ts:38 - bypasses validation for admin user
-  - Added for testing, should be removed
-  - Comment says "FIXME: Remove before production"
-
-- Migration 002 was hand-edited after running
-  - Don't trust migration files as source of truth
-  - Actual schema may differ slightly
+- [Quick fix or hack that needs proper solution]
+  - Location: [file:line]
 
 ---
 
-### 11. COGNITIVE LOAD HELPERS
+### 8. COGNITIVE LOAD HELPERS
 
 > **Help next agent build mental model quickly**
 
@@ -603,71 +276,20 @@ curl -X POST http://localhost:3000/api/auth/refresh \
 
 **What takes longest to understand:**
 - [Aspect that requires most mental effort]
-- [Domain knowledge that's not obvious]
-
-Example:
-```
-If I could only tell you 3 things:
-1. Refresh tokens are stored in DB for invalidation, access tokens are stateless
-2. The jwt.verify() throws exceptions, doesn't return null - wrap everything in try/catch
-3. Auth routes must be defined BEFORE applying auth middleware, or they'll block themselves
-
-Common misconceptions:
-- ❌ You might think: JWT middleware can be applied globally
-- ✅ Reality: Would block auth routes from working, use route-specific middleware
-
-- ❌ You might think: refresh() method replaces access token in place
-- ✅ Reality: Returns NEW token, client must update their stored token
-
-What takes longest to understand:
-- The flow of how tokens are issued, refreshed, and validated
-- Why tokens can't be invalidated before expiry (stateless nature)
-- The circular dependency problem with protecting the refresh endpoint itself
-```
 
 ---
 
-### 12. REFERENCES & RESOURCES
+### 9. CROSS-REFERENCES
 
-**Documentation consulted:**
-- [jsonwebtoken npm package](https://npmjs.com/package/jsonwebtoken)
-- [JWT.io - Introduction to JWT](https://jwt.io/introduction)
-- [OWASP JWT Cheat Sheet](https://cheatsheetseries.owasp.org/)
+**For detailed context, see:**
+- **.context/failures.log** - Chronological record of failed approaches with root causes
+- **.context/decisions.log** - Architectural decisions with rationale and trade-offs
+- **.context/learnings.log** - Key insights, patterns, and mental model refinements
 
-**Similar implementations:**
-- [passport-jwt strategy](https://passportjs.org/packages/passport-jwt/) - Alternative approach
-- [auth0/node-jsonwebtoken examples](https://github.com/auth0/node-jsonwebtoken/tree/master/examples)
-
-**Relevant Stack Overflow:**
-- [Should refresh tokens be stored in DB?](https://stackoverflow.com/questions/27726066/) - Consensus: Yes
-
-**Related PRs/Issues:**
-- [None yet - new project]
-
----
-
-## Quality Guidelines
-
-### Preserve Mental Models
-Document HOW things work, not just WHAT exists:
-- ❌ "Token validation middleware exists"
-- ✅ "When a request comes in, middleware extracts Bearer token from Authorization header, verifies signature with JWT_SECRET, and attaches decoded user ID to req.user for downstream handlers"
-
-### Distinguish Root Causes from Symptoms
-- ❌ "Endpoint returns 500"
-- ✅ "jwt.verify() throws exception on invalid token, and no try/catch exists, so exception bubbles up and Express default handler returns 500"
-
-### Make Assumptions Explicit
-- ❌ "Users have unique emails"
-- ✅ "ASSUMPTION: Users have unique emails (verified by database UNIQUE constraint on users.email column)"
-
-### Document Failed Approaches as Learning
-- ❌ "Tried middleware, didn't work"
-- ✅ "❌ Global middleware failed because auth routes need to run before tokens exist (circular dependency). LEARNED: Use route-specific middleware: router.get('/protected', authMiddleware, handler)"
-
-### Show Evolution and Change
-- ❌ "Using JWT for auth"
-- ✅ "DECISION: Switched from server sessions to JWT on Jan 15 because of mobile clients. Trade-off: Can't invalidate tokens before expiry, mitigated with 15min expiry + refresh tokens."
+**These logs are loaded lazily during resume - you don't need to read them unless:**
+- You're about to try a new approach (check failures.log first)
+- You're questioning a design choice (check decisions.log for rationale)
+- You need deep insights on system behavior (check learnings.log)
 
 ---
 
@@ -683,107 +305,731 @@ Document HOW things work, not just WHAT exists:
    - What's the data flow?
    - What assumptions are being made?
 
-3. **Extract tacit knowledge:**
-   - What decisions did I make and why?
-   - What did I learn from failures?
-   - What would someone need to know to continue?
-
-4. **Create the HANDOFF.md file:**
+3. **Create the RESUME.md file:**
    - Write each section thoroughly
-   - Be ruthlessly honest about what failed
-   - Include specific details (error messages, line numbers)
-   - Make implicit knowledge explicit
+   - Be specific with file paths and line numbers
+   - Focus on HOW things work, not just WHAT exists
+   - Reference .context/ logs for detailed analysis
 
-5. **Review for cognitive completeness:**
-   - Can another agent understand the mental model?
-   - Are root causes clear, not just symptoms?
-   - Are assumptions stated explicitly?
-   - Would this save the next agent from repeating my mistakes?
-
-6. **Confirm with the user:**
-   - Show where the handoff was saved
-   - Summarize what was captured
-   - Ask if critical context is missing
+4. **Confirm completion:**
+   - Show summary of what was captured
+   - Report file location
+   - List sections included
 
 ---
 
-## Example Output Message
+## Quality Guidelines
 
-After creating the handoff, tell the user:
+### Preserve Mental Models
+Document HOW things work, not just WHAT exists:
+- ❌ "Token validation middleware exists"
+- ✅ "When a request comes in, middleware extracts Bearer token, verifies signature, attaches user ID to req.user"
+
+### Be Specific and Actionable
+- Include file paths: `src/auth.ts:45`
+- Include exact commands: `npm run test:auth`
+- Include reproduction steps with expected vs actual
+
+### Make Assumptions Explicit
+- ❌ "Users have unique emails"
+- ✅ "ASSUMPTION: Users have unique emails (verified by UNIQUE constraint on users.email)"
+
+### Reference, Don't Duplicate
+Since other agents handle failures, decisions, and learnings:
+- Mention that failed approaches exist
+- Link to .context/failures.log for details
+- Focus your energy on current state and next steps
+
+---
+
+Now execute: Create RESUME.md following the structure above."
+```
+
+### Agent 2: Failure Analyzer
 
 ```
-✅ Created comprehensive handoff documentation at HANDOFF.md
+subagent_type: "general-purpose"
+description: "Analyze failures → .context/failures.log"
+model: "sonnet"
+run_in_background: true
+prompt: "You are Agent 2 of 4 in a parallel handoff creation system. Your job is to create .context/failures.log that documents every failed approach with deep root cause analysis.
 
-Key elements captured:
-- Mental model: How the JWT auth flow works and why
-- 3 failed approaches with root cause analysis
-- 5 architectural decisions with trade-offs explained
-- 4 explicit assumptions and their verification status
-- 7 prioritized next steps with complexity estimates
-- Hidden dependencies and tribal knowledge
-- Complete cognitive context for resuming
+## Your Role
 
-The handoff documents:
-- Not just what exists, but HOW it works
-- Not just symptoms, but ROOT CAUSES
-- Not just facts, but REASONING
-- Not just successes, but LEARNINGS from failures
+Analyze the conversation history and codebase to identify:
+- What approaches were tried but failed
+- Exact error messages encountered
+- Root causes (not just symptoms)
+- What was learned from each failure
+- Why retrying would fail without changes
 
-To resume: /reheat:resume or share HANDOFF.md with any AI agent
+**Focus on:** Deep forensic analysis of failures
+**Don't document:** Current state, decisions, or general insights (other agents handle this)
+
+---
+
+## failures.log Format
+
+Create `.context/failures.log` with this structure:
+
+```
+# Failures Log
+
+This file documents failed approaches in chronological order with root cause analysis.
+
+## Why This Matters
+
+Failed approaches are discoveries, not mistakes. Each failure eliminated a dead end and taught us something about how the system really works. This log prevents future agents from repeating these time-consuming explorations.
+
+---
+
+## Failure #1: [Brief Description]
+
+**Timestamp:** [When this was attempted]
+
+**What I Tried:**
+```
+[Actual code or approach attempted - be specific]
+```
+
+**Error Encountered:**
+```
+[EXACT error message - copy/paste, don't paraphrase]
+[Include stack trace if relevant]
+```
+
+**Context:**
+- File/Location: [path:line]
+- Goal: [What was I trying to accomplish?]
+- Assumption: [What did I think would happen?]
+
+**Root Cause:**
+[Not just "it didn't work" - WHY didn't it work?]
+[Use 5 Whys if needed to get to fundamental issue]
+
+Example:
+- Surface: "Middleware threw error"
+- One level down: "JWT verification failed"
+- Root cause: "jwt.verify() throws exceptions on invalid tokens instead of returning null, and no try/catch existed"
+
+**What I Learned:**
+[Key insight from this failure - what does this teach about the system?]
+
+**Mental Model Correction:**
+- **Expected:** [What I thought would happen]
+- **Reality:** [What actually happens]
+
+**Why Retry Would Fail:**
+[What would need to be different for this approach to work?]
+[Or: Why this approach is fundamentally flawed?]
+
+**Alternative Approach:**
+[If known: What's the better way to solve this?]
+
+---
+
+[Repeat for each failure...]
+
+---
+
+## Pattern Analysis
+
+After documenting individual failures, add analysis section:
+
+### Common Themes
+[Are there recurring issues? Similar root causes?]
+
+### System Insights
+[What do these failures collectively teach about how the system works?]
+
+### Areas of Confusion
+[What aspects of the system caused the most failed attempts?]
+```
+
+---
+
+## Execution Steps
+
+1. **Review conversation history thoroughly:**
+   - Look for error messages
+   - Identify approaches that were abandoned
+   - Find mentions of "didn't work", "failed", "error"
+
+2. **For each failure, reconstruct:**
+   - What was the actual code/approach?
+   - What was the exact error?
+   - What was the root cause?
+   - What was learned?
+
+3. **Analyze patterns:**
+   - Do certain types of failures recur?
+   - What system behaviors caused confusion?
+
+4. **Create .context/failures.log:**
+   - Document chronologically
+   - Be forensically detailed
+   - Focus on ROOT CAUSES not symptoms
+   - Include exact error messages
+   - Explain mental model corrections
+
+5. **Report completion:**
+   - Count of failures documented
+   - Key patterns identified
+   - File location
+
+---
+
+## Quality Guidelines
+
+### Exact Error Messages
+❌ "Got an auth error"
+✅ "TokenExpiredError: jwt expired at verify (node_modules/jsonwebtoken/verify.js:147)"
+
+### Root Causes Not Symptoms
+❌ "Endpoint returned 500"
+✅ "jwt.verify() throws on invalid token, no try/catch exists, exception bubbles up to Express default handler"
+
+### Mental Model Corrections
+❌ "Approach didn't work"
+✅ "Expected: jwt.verify() returns null on invalid token. Reality: It throws exception requiring try/catch"
+
+### Preventive Guidance
+Include why retry would fail and what alternative to try instead.
+
+---
+
+Now execute: Create .context/failures.log with comprehensive failure analysis."
+```
+
+### Agent 3: Decision Tracker
+
+```
+subagent_type: "general-purpose"
+description: "Track decisions → .context/decisions.log"
+model: "sonnet"
+run_in_background: true
+prompt: "You are Agent 3 of 4 in a parallel handoff creation system. Your job is to create .context/decisions.log that documents architectural and technical decisions with full rationale.
+
+## Your Role
+
+Analyze the conversation and code to identify:
+- Key technical and architectural decisions
+- What options were considered
+- Why specific choices were made
+- Trade-offs accepted
+- Alternatives rejected and why
+
+**Focus on:** Decision rationale and trade-offs
+**Don't document:** Implementation details, failures, or insights (other agents handle this)
+
+---
+
+## decisions.log Format
+
+Create `.context/decisions.log` with this structure:
+
+```
+# Decisions Log
+
+This file documents key decisions made during development with full rationale and trade-offs.
+
+## Why This Matters
+
+Understanding WHY decisions were made prevents future agents from:
+- Questioning choices without context
+- Suggesting already-rejected alternatives
+- Breaking carefully considered trade-offs
+- Undoing decisions without understanding consequences
+
+---
+
+## Decision #1: [Clear Decision Statement]
+
+**Date:** [When decided]
+
+**Status:** [Active | Superseded | Under Review]
+
+**Context:**
+[What situation prompted this decision?]
+[What problem were we trying to solve?]
+[What constraints existed?]
+
+**Options Considered:**
+
+### Option A: [Name]
+**Description:** [What this option involves]
+**Pros:**
+- [Advantage 1]
+- [Advantage 2]
+
+**Cons:**
+- [Disadvantage 1]
+- [Disadvantage 2]
+
+**Why Rejected:**
+[Specific reason this wasn't chosen]
+
+### Option B: [Name]
+[Same structure...]
+
+### Option C: [Name] ✅ CHOSEN
+**Description:** [What this option involves]
+**Pros:**
+- [Advantage 1]
+- [Advantage 2]
+
+**Cons:**
+- [Disadvantage 1 - how we're mitigating]
+- [Disadvantage 2 - how we're mitigating]
+
+**Why Chosen:**
+[Specific rationale for this choice]
+[What factors were most important?]
+
+**Trade-offs Accepted:**
+- **Giving up:** [What capability/benefit we're sacrificing]
+- **Gaining:** [What we get in return]
+- **Mitigation:** [How we're handling the downside]
+
+**Consequences:**
+- ✅ **Enables:** [What this decision makes possible]
+- ⚠️ **Constrains:** [What limitations this creates]
+- 🔒 **Commits to:** [What we're locked into]
+
+**If This Decision Changes:**
+[What would need to be refactored?]
+[How much work to reverse?]
+
+---
+
+[Repeat for each decision...]
+
+---
+
+## Decision Dependencies
+
+Document how decisions relate:
+
+**Decision Tree:**
+```
+Decision #1 (Auth: JWT vs Sessions)
+    ↓ requires
+Decision #3 (Token Storage: DB vs In-Memory)
+    ↓ enables
+Decision #5 (Mobile Client Support)
+```
+
+**Conflicting Decisions:**
+[Are there tensions between decisions?]
+[How are conflicts being managed?]
+
+---
+
+## Evolution of Decisions
+
+**Superseded Decisions:**
+
+### [Original Decision] → [New Decision]
+**When Changed:** [Date]
+**Why Changed:** [What new information prompted the change?]
+**Migration:** [How are we handling the transition?]
+
+```
+
+---
+
+## Execution Steps
+
+1. **Review conversation for decision points:**
+   - Look for discussions of alternatives
+   - Find comparisons of approaches
+   - Identify trade-off discussions
+   - Note explicit choices made
+
+2. **For each decision, document:**
+   - What options were considered
+   - What factors influenced the choice
+   - What trade-offs were accepted
+   - What this enables/constrains
+
+3. **Analyze relationships:**
+   - Do decisions depend on each other?
+   - Are there conflicts or tensions?
+   - Have decisions evolved?
+
+4. **Create .context/decisions.log:**
+   - Use clear decision statements
+   - Provide full rationale
+   - Document all alternatives
+   - Explain trade-offs explicitly
+
+5. **Report completion:**
+   - Count of decisions documented
+   - Key dependencies noted
+   - File location
+
+---
+
+## Quality Guidelines
+
+### Clear Decision Statements
+❌ "Using JWT"
+✅ "Decision: Use JWT tokens instead of server-side sessions for API authentication"
+
+### Full Rationale
+Include WHY, not just WHAT:
+- What problem does this solve?
+- Why this option over alternatives?
+- What factors were most important?
+
+### Explicit Trade-offs
+❌ "JWT is better"
+✅ "JWT enables stateless scaling but can't be invalidated before expiry. Mitigating with 15min expiry + refresh tokens."
+
+### Rejected Alternatives
+Document why other options weren't chosen:
+"Sessions rejected because: Requires sticky sessions or Redis, adds operational complexity"
+
+---
+
+Now execute: Create .context/decisions.log with comprehensive decision documentation."
+```
+
+### Agent 4: Insight Extractor
+
+```
+subagent_type: "general-purpose"
+description: "Extract insights → .context/learnings.log"
+model: "sonnet"
+run_in_background: true
+prompt: "You are Agent 4 of 4 in a parallel handoff creation system. Your job is to create .context/learnings.log that extracts deep insights and patterns from the work.
+
+## Your Role
+
+Analyze the conversation and work to identify:
+- Key insights about how the system works
+- Non-obvious patterns discovered
+- Mental model refinements
+- Deep understanding that took time to build
+- Tribal knowledge worth preserving
+
+**Focus on:** Deep insights and patterns
+**Don't document:** Failures, decisions, or status (other agents handle this)
+
+---
+
+## learnings.log Format
+
+Create `.context/learnings.log` with this structure:
+
+```
+# Learnings Log
+
+This file captures key insights, patterns, and deep understanding gained during development.
+
+## Why This Matters
+
+Some knowledge takes hours or days to build:
+- How components really interact
+- Non-obvious system behaviors
+- Patterns that aren't documented
+- Mental models that crystallize with experience
+
+This log preserves that hard-won understanding.
+
+---
+
+## Category: System Behavior
+
+### Learning #1: [Insight Title]
+
+**Discovery Date:** [When realized]
+
+**The Insight:**
+[Clear statement of what was learned]
+
+**Why This Matters:**
+[How does this insight change understanding?]
+[What does this enable or prevent?]
+
+**How We Discovered This:**
+[What led to this realization?]
+[Was it from a failure? Testing? Code reading?]
+
+**Practical Implications:**
+- [How does this affect implementation?]
+- [What should future work account for?]
+- [What mistakes does this prevent?]
+
+**Example:**
+```
+[Code or scenario that demonstrates this insight]
+```
+
+**Related Concepts:**
+- [Connected to Learning #X]
+- [Builds on Decision #Y]
+
+---
+
+## Category: Mental Model Refinements
+
+### Learning #2: [Model Evolution]
+
+**Initial Mental Model:**
+[What I thought was happening]
+
+**Refined Mental Model:**
+[What's actually happening]
+
+**What Changed My Understanding:**
+[What evidence led to refinement?]
+
+**Critical Distinction:**
+[What's the key difference between models?]
+
+Example:
+```
+Initial Model: "JWT middleware validates tokens globally"
+
+Refined Model: "JWT middleware would create circular dependency
+if applied globally because auth routes need to run before tokens
+exist. Route-specific middleware solves this."
+
+What Changed: Failed attempt at app-level middleware revealed
+the circular dependency issue.
+
+Critical Distinction: The difference between protecting all routes
+by default (push model) vs protecting specific routes as needed
+(pull model).
+```
+
+---
+
+## Category: Non-Obvious Patterns
+
+### Learning #3: [Pattern Name]
+
+**Pattern Observed:**
+[Description of recurring pattern or behavior]
+
+**Where This Appears:**
+- [Location 1]
+- [Location 2]
+- [Location 3]
+
+**Why This Pattern Exists:**
+[Underlying reason for this pattern]
+
+**How to Work With This Pattern:**
+[Best practices for handling this]
+
+---
+
+## Category: Tribal Knowledge
+
+### Learning #4: [Hidden Knowledge]
+
+**What Isn't Documented:**
+[Thing that only experienced developers know]
+
+**Where This Matters:**
+[Situations where this knowledge is critical]
+
+**How to Discover This:**
+[How would someone learn this without this log?]
+[Probably: painfully, through trial and error]
+
+**Examples of Getting Bitten:**
+[Scenarios where not knowing this causes problems]
+
+---
+
+## Meta-Patterns
+
+### Cognitive Themes
+
+**What Was Hardest to Understand:**
+[Aspects that took longest to grasp]
+[Why were these difficult?]
+
+**Most Valuable Insights:**
+[Top 3 learnings that had biggest impact]
+
+**Knowledge Gaps Remaining:**
+[What do we still not fully understand?]
+[What needs more investigation?]
+
+### System Characteristics
+
+**This System Tends To:**
+[Behavioral tendencies observed]
+[How does the system behave under different conditions?]
+
+**Common Gotchas:**
+[Repeated pitfalls or surprises]
+
+**Power User Tips:**
+[Advanced techniques discovered]
+[Shortcuts or patterns that work well]
+
+---
+
+## Cross-References
+
+**Learnings From Failures:**
+[Which insights came from failures.log entries?]
+
+**Learnings That Informed Decisions:**
+[Which insights led to decisions in decisions.log?]
+
+```
+
+---
+
+## Execution Steps
+
+1. **Deep analysis of conversation:**
+   - What insights emerged over time?
+   - What was surprising or non-obvious?
+   - What took effort to understand?
+   - What "aha!" moments occurred?
+
+2. **Identify patterns:**
+   - Are there recurring themes?
+   - What system behaviors are notable?
+   - What knowledge isn't documented elsewhere?
+
+3. **Extract mental model evolution:**
+   - How did understanding change?
+   - What corrections were made?
+   - What distinctions matter?
+
+4. **Capture tribal knowledge:**
+   - What would only experienced devs know?
+   - What causes problems if unknown?
+   - What isn't in official docs?
+
+5. **Create .context/learnings.log:**
+   - Organize by category
+   - Focus on NON-OBVIOUS insights
+   - Explain practical implications
+   - Show how insights connect
+
+6. **Report completion:**
+   - Count of learnings captured
+   - Key patterns identified
+   - File location
+
+---
+
+## Quality Guidelines
+
+### Focus on Non-Obvious
+Don't document obvious facts:
+❌ "JWT is used for authentication"
+✅ "JWT verification is synchronous and blocks event loop - OK for <1000 req/s, problematic above that"
+
+### Explain Implications
+Connect insights to practice:
+❌ "Tokens expire after 15 minutes"
+✅ "15min expiry means mobile apps must handle background refresh, or users get logged out mid-session"
+
+### Show Mental Model Evolution
+Document how understanding changed:
+"Initial Model: X → Refined Model: Y → Key Distinction: Z"
+
+### Preserve Hard-Won Knowledge
+Focus on insights that took time/effort to discover.
+
+---
+
+Now execute: Create .context/learnings.log with deep insights and patterns."
+```
+
+---
+
+## Step 3: Wait for All Agents to Complete
+
+Use TaskOutput to retrieve results from all 4 background agents:
+
+```
+TaskOutput for Agent 1 (Resume Builder)
+TaskOutput for Agent 2 (Failure Analyzer)
+TaskOutput for Agent 3 (Decision Tracker)
+TaskOutput for Agent 4 (Insight Extractor)
+```
+
+---
+
+## Step 4: Cross-Reference and Synthesize
+
+After all agents complete, perform coordinator analysis:
+
+1. **Read all generated files:**
+   - RESUME.md
+   - .context/failures.log
+   - .context/decisions.log
+   - .context/learnings.log
+
+2. **Identify cross-references:**
+   - Which failures led to which decisions?
+   - Which learnings emerged from which failures?
+   - Which decisions were informed by which insights?
+
+3. **Detect patterns:**
+   - Are there themes across files?
+   - Do failures cluster around certain areas?
+   - Are decisions interconnected?
+
+4. **Generate summary report for user**
+
+---
+
+## Step 5: Report Results to User
+
+Provide comprehensive summary:
+
+```
+✅ Created comprehensive handoff documentation with multi-agent analysis
+
+**Primary Document:**
+- RESUME.md (X sections, Y KB)
+
+**Diagnostic Logs:**
+- .context/failures.log (N failures analyzed)
+- .context/decisions.log (M decisions documented)
+- .context/learnings.log (K insights captured)
+
+**Cross-Reference Patterns Detected:**
+- [Pattern 1: e.g., "3 failures led to Decision #2 about token handling"]
+- [Pattern 2: e.g., "Learning about async behavior influenced 2 architectural decisions"]
+- [Pattern 3: e.g., "Authentication failures clustered around middleware lifecycle"]
+
+**What Was Captured:**
+- Current state and 60% progress estimate
+- Mental model of system data flow
+- 3 failed approaches with root causes
+- 5 architectural decisions with trade-offs
+- 7 key insights about non-obvious behavior
+- Prioritized next steps with file:line references
+
+**To Resume:**
+Use `/reheat:resume` - it will load RESUME.md first, then lazily reference .context/ logs as needed.
+
+**To Share:**
+Commit RESUME.md and .context/ to git, or share with any AI agent for seamless continuation.
 ```
 
 ---
 
 ## Remember
 
-This handoff is a **cognitive transfer document**, not just a status report.
+This multi-agent approach provides:
+- **Parallel execution** - 4x faster than sequential
+- **Specialized focus** - Each agent optimizes for their domain
+- **Rich context** - Primary doc + 3 diagnostic logs
+- **Pattern detection** - Coordinator spots connections across findings
+- **Lazy loading** - Resume reads RESUME.md first, only loads .context/ logs when needed
 
-**Goal:** Enable the next agent to have the same mental model you have now.
-
-**Success criteria:**
-- ✅ Next agent understands not just WHAT exists, but HOW it works
-- ✅ Failed approaches are documented so they're not repeated
-- ✅ Assumptions are explicit, not hidden
-- ✅ Root causes are identified, not just symptoms
-- ✅ Decisions include reasoning, not just outcomes
-- ✅ Tribal knowledge is captured before it's lost
-- ✅ Mental models are preserved, not reconstructed
-
-**Key insight from research:**
-> Context switching consumes 20% of cognitive capacity. Poor knowledge transfer costs $2.1M/year. Working memory holds only 4-5 items. This handoff must do the heavy lifting of preserving complete context so the next agent can be productive immediately, not spend hours rebuilding your mental model.
-
-**Failed approaches are the most valuable documentation—they represent discoveries that save future time.**"
-```
-
-Execute the Task tool now with the prompt above.
-
----
-
-## Step 2: Report Results to User
-
-After the subagent completes the handoff creation, confirm with the user:
-
-```
-✅ Created comprehensive handoff documentation at HANDOFF.md
-
-The handoff was created in a fresh context for maximum focus and quality.
-
-Key elements captured:
-- Mental model: How the system works and why
-- Failed approaches with root cause analysis
-- Architectural decisions with trade-offs explained
-- Explicit assumptions and their verification status
-- Prioritized next steps with complexity estimates
-- Hidden dependencies and tribal knowledge
-- Complete cognitive context for resuming
-
-The handoff documents:
-- Not just what exists, but HOW it works
-- Not just symptoms, but ROOT CAUSES
-- Not just facts, but REASONING
-- Not just successes, but LEARNINGS from failures
-
-To resume: Use /reheat:resume or share HANDOFF.md with any AI agent
-```
-
-Ask the user if they'd like to review the handoff or if there's any critical context they feel is missing.
+The result is comprehensive handoff documentation that enables seamless continuation by any AI agent.

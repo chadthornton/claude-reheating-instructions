@@ -21,10 +21,10 @@ claude code --plugin install .
 When you're in the middle of work and need to stop:
 
 ```
-/reheating:create
+/reheat:save
 ```
 
-Claude will analyze your project and create a `HANDOFF.md` file with:
+Claude will analyze your project and create a `RESUME.md` file with:
 - What you're working on
 - What's been done
 - What failed (with specific errors)
@@ -35,7 +35,7 @@ Claude will analyze your project and create a `HANDOFF.md` file with:
 In a new session:
 
 ```
-/reheating:resume
+/reheat:resume
 ```
 
 Claude will:
@@ -49,7 +49,7 @@ Claude will:
 For simple tasks, use the streamlined version:
 
 ```
-/reheating:quick
+/reheat:save-quick
 ```
 
 ## Example Workflow
@@ -58,13 +58,13 @@ For simple tasks, use the streamlined version:
 ```
 You: I'm implementing JWT authentication but having issues with the middleware
 Claude: [works on the problem, tries several approaches]
-You: /reheating:create
-Claude: ✅ Created comprehensive handoff at HANDOFF.md
+You: /reheat:save
+Claude: ✅ Created comprehensive handoff at RESUME.md
 ```
 
 **Session 2:**
 ```
-You: /reheating:resume
+You: /reheat:resume
 Claude: I've reviewed the handoff. You're implementing JWT auth, and I see that
        app-level middleware failed due to token expiration. I'll implement the
        refresh endpoint first instead. Shall I proceed?
@@ -97,7 +97,7 @@ The quality of your handoff determines how well the next agent can continue. Whe
 ## Tips
 
 1. **Create handoffs frequently** - Don't wait until the session ends
-2. **Update handoffs as you go** - Run `/reheating:create` again to refresh
+2. **Update handoffs as you go** - Run `/reheat:save` again to refresh
 3. **Be honest about failures** - They're the most valuable documentation
 4. **Use quick mode for simple tasks** - Save time when appropriate
 
@@ -112,7 +112,7 @@ The quality of your handoff determines how well the next agent can continue. Whe
 - Verify [plugin.json](plugin.json) paths are correct
 
 **"Handoff not detailed enough"**
-- Use `/reheating:create` instead of `/reheating:quick`
+- Use `/reheat:save` instead of `/reheat:save-quick`
 - Provide more context in the conversation before creating the handoff
 
 ## Next Steps

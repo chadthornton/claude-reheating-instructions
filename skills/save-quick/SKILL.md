@@ -22,20 +22,20 @@ prompt: "You are creating a minimal handoff document for straightforward tasks w
 
 ## Your Task
 
-Create a concise HANDOFF.md file in the project root with essential information only.
+Create a concise RESUME.md file in the project root with essential information only.
 
 **IMPORTANT - Archive Existing Handoff:**
-Before creating the new HANDOFF.md, check if one already exists. If it does:
+Before creating the new RESUME.md, check if one already exists. If it does:
 1. Create a `handoff-archive/` directory if it doesn't exist
-2. Move the existing HANDOFF.md to `handoff-archive/HANDOFF-YYYYMMDD-HHMM.md` with the current timestamp
+2. Move the existing RESUME.md to `handoff-archive/HANDOFF-YYYYMMDD-HHMM.md` with the current timestamp
 3. Inform the user that the previous handoff was archived
 
 Example:
 ```bash
-if [ -f HANDOFF.md ]; then
+if [ -f RESUME.md ]; then
   mkdir -p handoff-archive
   timestamp=$(date +%Y%m%d-%H%M)
-  mv HANDOFF.md "handoff-archive/HANDOFF-${timestamp}.md"
+  mv RESUME.md "handoff-archive/HANDOFF-${timestamp}.md"
   echo "📦 Previous handoff archived to handoff-archive/HANDOFF-${timestamp}.md"
 fi
 ````
@@ -112,7 +112,7 @@ After the subagent completes the handoff creation, confirm with the user:
 
 ```
 
-✅ Created quick handoff at HANDOFF.md
+✅ Created quick handoff at RESUME.md
 
 The handoff was created in a fresh context for clarity and focus.
 

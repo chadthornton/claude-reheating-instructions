@@ -18,8 +18,11 @@ node_modules/
 .claude/settings.local.json
 
 # Generated handoff files (user-created, not part of repo)
-HANDOFF.md
+RESUME.md
+.context/*
+!.context/README.md
 
 # Handoff archives (user-created, not part of repo)
 # But track the README that explains the policy
-handoff-archive/HANDOFF-*.md
+handoff-archive/RESUME-*.md
+handoff-archive/.context-*
