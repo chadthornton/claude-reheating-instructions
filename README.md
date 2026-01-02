@@ -54,15 +54,34 @@ claude code --plugin-dir .
 
 # Option 2: Install via symlink (recommended for development)
 mkdir -p ~/.claude/skills
-ln -s $(pwd) ~/.claude/skills/reheating
+ln -s $(pwd) ~/.claude/skills/reheat
 ```
 
 ### From GitHub (once published)
 
 ```bash
 /plugin marketplace add yourusername/claude-reheat
-/plugin install reheating
+/plugin install reheat
 ```
+
+### Optional Performance Tools
+
+The plugin works out-of-the-box with standard Unix tools, but you can optionally install performance-enhancing tools for faster operation on large conversations:
+
+**ripgrep (`rg`)** - 2-5x faster than grep for large JSONL files
+```bash
+# macOS
+brew install ripgrep
+
+# Linux
+apt-get install ripgrep
+```
+
+The helper script auto-detects `rg` and uses it automatically if available. No configuration needed.
+
+**Performance impact:**
+- Typical sessions (200-500 messages): Minimal benefit (< 5 seconds saved)
+- Long sessions (1000+ messages): Noticeable benefit (10-15 seconds saved)
 
 ## Usage
 

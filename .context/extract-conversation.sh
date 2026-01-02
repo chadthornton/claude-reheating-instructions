@@ -1,9 +1,17 @@
 #!/bin/bash
 # Fast JSONL conversation extractor for parallel agent architecture
-# Uses grep (filter) + jq (parse) for 2-3x faster extraction than jq-only
+# Uses grep/rg (filter) + jq (parse) for 2-3x faster extraction than jq-only
 # All 3 agents (Context, Action, Notes) use this shared helper
+# Auto-detects ripgrep (rg) for 2-5x performance improvement on large files
 
 set -euo pipefail
+
+# Auto-detect ripgrep for better performance (fallback to grep)
+if command -v rg &> /dev/null; then
+    GREP_CMD="rg"
+else
+    GREP_CMD="grep"
+fi
 
 # Find current session JSONL file
 get_session_file() {
@@ -30,8 +38,8 @@ extract_user_goals() {
 # Extract error messages and broken state (for Agent 1)
 extract_errors() {
     local session_file="$1"
-    # grep first (fast filter), then jq (parse JSON)
-    grep -iE 'error|failed|exception|broken|not working|returns [45][0-9]{2}' "$session_file" 2>/dev/null | \
+    # grep/rg first (fast filter), then jq (parse JSON)
+    $GREP_CMD -iE 'error|failed|exception|broken|not working|returns [45][0-9]{2}' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="assistant" or .type=="user") |
            if .type == "user" then .message.content
            else (.message.content[]? | select(.type=="text") | .text) end' 2>/dev/null | \
@@ -42,7 +50,7 @@ extract_errors() {
 extract_next_steps() {
     local session_file="$1"
     # Look for action-oriented language in recent messages
-    grep -iE 'next|todo|need to|should|will|going to|let me|lets' "$session_file" 2>/dev/null | \
+    $GREP_CMD -iE 'next|todo|need to|should|will|going to|let me|lets' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="user" or .type=="assistant") |
            if .type == "user" then .message.content
            else (.message.content[]? | select(.type=="text") | .text) end' 2>/dev/null | \
@@ -53,7 +61,7 @@ extract_next_steps() {
 extract_key_files() {
     local session_file="$1"
     # Look for file mentions in conversation
-    grep -E '\.(ts|js|py|go|rs|java|jsx|tsx|vue|rb|php|cpp|c|h|css|html|json|yaml|yml)' "$session_file" 2>/dev/null | \
+    $GREP_CMD -E '\.(ts|js|py|go|rs|java|jsx|tsx|vue|rb|php|cpp|c|h|css|html|json|yaml|yml)' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="assistant" or .type=="user") |
            if .type == "user" then .message.content
            else (.message.content[]? | select(.type=="text") | .text) end' 2>/dev/null | \
@@ -65,7 +73,7 @@ extract_key_files() {
 extract_failures() {
     local session_file="$1"
     # Look for explicit failure/rejection language
-    grep -iE 'tried|attempt|didnt work|failed|doesnt work|not working|instead|gave up|abandoned' "$session_file" 2>/dev/null | \
+    $GREP_CMD -iE 'tried|attempt|didnt work|failed|doesnt work|not working|instead|gave up|abandoned' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="assistant") |
            (.message.content[]? | select(.type=="text") | .text)' 2>/dev/null | \
     head -15
@@ -75,7 +83,7 @@ extract_failures() {
 extract_decisions() {
     local session_file="$1"
     # Look for decision language
-    grep -iE 'decided|chose|going with|using|opted for|instead of|better than|prefer' "$session_file" 2>/dev/null | \
+    $GREP_CMD -iE 'decided|chose|going with|using|opted for|instead of|better than|prefer' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="assistant" or .type=="user") |
            if .type == "user" then .message.content
            else (.message.content[]? | select(.type=="text") | .text) end' 2>/dev/null | \
@@ -86,7 +94,7 @@ extract_decisions() {
 extract_gotchas() {
     local session_file="$1"
     # Look for warning/gotcha language
-    grep -iE 'gotcha|warning|careful|important|must|critical|dont|avoid|remember' "$session_file" 2>/dev/null | \
+    $GREP_CMD -iE 'gotcha|warning|careful|important|must|critical|dont|avoid|remember' "$session_file" 2>/dev/null | \
     jq -r 'select(.type=="assistant") |
            (.message.content[]? | select(.type=="text") | .text)' 2>/dev/null | \
     head -10
