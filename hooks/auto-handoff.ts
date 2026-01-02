@@ -78,7 +78,7 @@ export const onContextWarning: Hook<HandoffHookContext> = async (context) => {
     await task({
       subagent_type: "general-purpose",
       description: "Emergency handoff before context limit",
-      prompt: `We're approaching context limits. Use /reheat:create to document all current work immediately.
+      prompt: `We're approaching context limits. Use /reheat:save to document all current work immediately.
 
 This is critical - we're about to lose context. Capture:
 - What we're working on
@@ -86,7 +86,7 @@ This is critical - we're about to lose context. Capture:
 - What failed and why
 - What's next
 
-Execute /reheat:create now.`,
+Execute /reheat:save now.`,
     });
 
     console.log("   ✅ Emergency handoff created");
@@ -151,9 +151,9 @@ export const onCheckpoint: Hook<HandoffHookContext> = async (context) => {
       description: "Periodic checkpoint handoff",
       prompt: `Creating periodic checkpoint after ${sessionDuration / 60} hours of work.
 
-Use /reheat:quick to document current progress as a safety checkpoint.
+Use /reheat:save-quick to document current progress as a safety checkpoint.
 
-Execute /reheat:quick now.`,
+Execute /reheat:save-quick now.`,
     });
 
     console.log("   ✅ Checkpoint handoff created");
