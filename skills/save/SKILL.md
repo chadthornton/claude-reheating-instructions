@@ -1,24 +1,44 @@
 ---
 name: save
-description: Save comprehensive handoff documentation with parallel multi-agent analysis
+description: Save comprehensive handoff documentation with parallel 6-agent architecture
 model: sonnet
 ---
 
 # Save Comprehensive Handoff Documentation
 
-**EXECUTION STRATEGY: Multi-agent parallel architecture for comprehensive context capture.**
+**EXECUTION STRATEGY: Parallel 6-agent architecture for 2x faster comprehensive context capture.**
 
 ## Overview
 
-This skill spawns 4 specialized agents in parallel to create:
-1. **RESUME.md** - Primary handoff document (12 sections)
-2. **.context/failures.log** - Chronological failure analysis
-3. **.context/decisions.log** - Architectural decision records
-4. **.context/learnings.log** - Key insights and patterns
+This skill spawns 6 specialized agents in parallel to create:
+- **RESUME.md** - Primary handoff document (12 sections, created by 3 agents)
+- **.context/failures.log** - Chronological failure analysis
+- **.context/decisions.log** - Architectural decision records
+- **.context/learnings.log** - Key insights and patterns
+
+**Performance:** ~1-1.5 minutes (vs 2-3 minutes with 4-agent architecture)
+
+**Architecture:**
+```
+Main Coordinator (Sonnet)
+        ↓
+    Spawn 6 parallel agents (all Haiku)
+        ↓
+    ┌───┬───┬───┬───┬───┬───┐
+    │   │   │   │   │   │   │
+    v   v   v   v   v   v   v
+   A1  A2  A3  A4  A5  A6
+   │   │   │   │   │   │
+   │   │   │   │   │   │
+RESUME RESUME RESUME failures decisions learnings
+sec1-4 sec5-8 sec9-12 .log   .log      .log
+```
+
+---
 
 ## Step 1: Archive Existing Handoff
 
-Before creating new handoff, archive the old one if it exists:
+Before creating new handoff, archive the old one if it exists using Bash tool:
 
 ```bash
 if [ -f RESUME.md ]; then
@@ -37,43 +57,41 @@ if [ -d .context ]; then
 fi
 ```
 
-## Step 2: Spawn 4 Parallel Agents
-
-Use the Task tool to spawn all 4 agents in parallel. Each agent works independently in fresh context.
-
-### Agent 1: Resume Builder
-
-```
-subagent_type: "general-purpose"
-description: "Build primary RESUME.md handoff"
-model: "sonnet"
-run_in_background: true
-prompt: "You are Agent 1 of 4 in a parallel handoff creation system. Your job is to create the primary RESUME.md file that serves as the main entry point for resuming work.
-
-## Your Role
-
-Create a comprehensive RESUME.md that documents:
-- What we're building and why
-- Current status and progress
-- Mental model of how the system works
-- Next steps and priorities
-- Technical context and setup
-
-**DO NOT document:**
-- Failed approaches (Agent 2 handles this → .context/failures.log)
-- Decision rationale (Agent 3 handles this → .context/decisions.log)
-- Deep insights (Agent 4 handles this → .context/learnings.log)
-
-Instead, REFERENCE these logs where appropriate:
-- "See .context/failures.log for attempts that didn't work"
-- "See .context/decisions.log for architectural rationale"
-- "See .context/learnings.log for key insights"
-
 ---
 
-## RESUME.md Structure
+## Step 2: Spawn 6 Parallel Agents
 
-Create a file with these sections:
+Use the Task tool to spawn all 6 agents **in a single message** with `run_in_background: true`.
+
+### Agent 1: RESUME Builder (Sections 1-4)
+
+````
+Task tool parameters:
+
+subagent_type: "general-purpose"
+description: "Agent 1: RESUME sections 1-4"
+model: "haiku"
+run_in_background: true
+prompt: "You are Agent 1 of 6 creating comprehensive handoff documentation. Write ONLY sections 1-4 of RESUME.md.
+
+## Accessing Conversation History
+
+Use the shared helper script to extract conversation context:
+
+```bash
+# Extract user's stated goals/objectives (for section 1)
+bash .context/extract-conversation.sh user_goals
+
+# Extract error messages from conversation (for section 3)
+bash .context/extract-conversation.sh errors
+
+# Extract next steps mentioned in conversation (for section 4)
+bash .context/extract-conversation.sh next_steps
+```
+
+These commands return relevant excerpts from the conversation history to help you write accurate sections.
+
+## Your Sections
 
 ### 1. OBJECTIVE & CONTEXT
 
@@ -84,7 +102,21 @@ Create a file with these sections:
 
 **Success criteria:**
 - How will we know this is done?
-- What does "working" look like?
+- What does \"working\" look like?
+
+Example:
+```
+## 1. OBJECTIVE & CONTEXT
+
+**What we're building:**
+Implementing JWT-based authentication for the Express API with token refresh flow to enable secure, stateless user sessions.
+
+**Success criteria:**
+- Users can log in and receive access + refresh tokens
+- Protected endpoints reject requests without valid tokens
+- Token refresh works before expiry
+- Test coverage for auth flows
+```
 
 ---
 
@@ -105,6 +137,28 @@ Create a file with these sections:
 **Overall progress:** X% complete
 
 **Confidence level:** [High/Medium/Low] - How stable is the current work?
+
+Example:
+```
+## 2. CURRENT STATUS
+
+**Completed:** ✅
+- POST /api/login endpoint at routes/auth.ts:12-45
+- Token generation in services/jwt.ts:8-23
+- User model with refreshToken field at models/User.ts:15
+
+**In Progress:** 🔄
+- Token refresh endpoint (80% done, fails with 500 error)
+- Error at routes/auth.ts:67 when verifying refresh token
+
+**Not Started:** ⏳
+- Auth middleware for protected routes
+- Integration tests for complete flow
+
+**Overall progress:** 60% complete
+
+**Confidence level:** Medium - Login works reliably, refresh needs debugging
+```
 
 ---
 
@@ -129,12 +183,28 @@ Create a file with these sections:
 
 Example:
 ```
-Mental Model: User logs in → JWT generated → Token stored in header →
-Middleware validates on each request → User ID attached to req.user
+## 3. MENTAL MODEL
 
-Assumption: Tokens are stateless (no DB lookup on each request)
-Assumption: Refresh tokens are stored in DB for invalidation
-Unverified: What happens if user changes password mid-session?
+**How it works (expected behavior):**
+User logs in → JWT access token (15min) + refresh token (7d) generated →
+Access token sent in Authorization header → Middleware validates on each request →
+User ID attached to req.user for protected routes
+
+**Data flow:**
+1. POST /api/login: email/password → bcrypt verify → generate tokens → return to client
+2. Client stores tokens (localStorage for access, httpOnly cookie for refresh)
+3. Protected route: Extract Bearer token → jwt.verify() → attach user to request
+4. Token expiring: POST /api/refresh with refresh token → verify against DB → issue new access token
+
+**Key assumptions:**
+- Access tokens are stateless (no DB lookup on each request for performance)
+- Refresh tokens stored in DB to enable invalidation (logout, password change)
+- JWT_SECRET and JWT_REFRESH_SECRET are different values
+- Token expiry uses string format (\"15m\", \"7d\") not milliseconds
+
+**Unverified:**
+- What happens if user changes password mid-session?
+- How do we handle refresh token rotation?
 ```
 
 **Failed approaches:** See .context/failures.log for detailed analysis of what didn't work.
@@ -143,7 +213,7 @@ Unverified: What happens if user changes password mid-session?
 
 ### 4. CURRENT ISSUES
 
-List active bugs or blockers. For each:
+List active bugs or blockers. For each issue, use extracted error messages from conversation:
 
 **Issue [N]: [Brief description]**
 
@@ -157,14 +227,100 @@ List active bugs or blockers. For each:
 ```
 1. [Exact command or action]
 2. [Expected behavior]
-3. [Actual behavior]
+3. [Actual behavior with EXACT error message from conversation]
 ```
 
 **Debugging status:**
 - What's been checked?
 - What's been ruled out?
 
+Example:
+```
+## 4. CURRENT ISSUES
+
+**Issue 1: Refresh token endpoint returns 500**
+
+**Symptom:**
+POST /api/refresh fails with Internal Server Error
+
+**Root cause (if known):**
+jwt.verify() is being called but decoded payload is undefined at routes/auth.ts:67
+
+**Reproduction steps:**
+```
+1. curl -X POST http://localhost:3000/api/refresh -d '{\"refreshToken\":\"eyJ...\"}'
+2. Expected: 200 with {\"accessToken\":\"...\"}
+3. Actual: 500 with {\"error\":\"Cannot read property 'id' of undefined\"}
+   Error location: routes/auth.ts:67
+   Line: const user = await User.findById(decoded.id)
+```
+
+**Debugging status:**
+- ✅ Checked: Token format is valid JWT
+- ✅ Checked: JWT_REFRESH_SECRET is set
+- ❌ Not checked: Whether jwt.verify() is in try/catch block
+- ❌ Not checked: If decoded payload structure matches expectation
+```
+
 ---
+
+## Output Format
+
+Return ONLY the markdown text for sections 1-4. No explanations, just the formatted sections:
+
+```
+## 1. OBJECTIVE & CONTEXT
+
+[Content using conversation context from helper script]
+
+## 2. CURRENT STATUS
+
+[Content with ✅ 🔄 ⏳ emojis]
+
+## 3. MENTAL MODEL
+
+[Content describing how system works]
+
+## 4. CURRENT ISSUES
+
+[Content with ACTUAL error messages from conversation]
+```
+
+## Critical Rules
+
+- Use helper script to extract user goals, errors, and next steps from conversation
+- Be SPECIFIC: Include file paths, line numbers, ACTUAL error messages (not summaries)
+- Document HOW things work, not just WHAT exists
+- Reference .context/failures.log for failed approaches (don't duplicate here)
+- Return ONLY your sections, no preamble"
+````
+
+### Agent 2: RESUME Builder (Sections 5-8)
+
+````
+Task tool parameters:
+
+subagent_type: "general-purpose"
+description: "Agent 2: RESUME sections 5-8"
+model: "haiku"
+run_in_background: true
+prompt: "You are Agent 2 of 6 creating comprehensive handoff documentation. Write ONLY sections 5-8 of RESUME.md.
+
+## Accessing Conversation History
+
+Use the shared helper script to extract conversation context:
+
+```bash
+# Extract explicit next steps mentioned in conversation (for section 5)
+bash .context/extract-conversation.sh next_steps
+
+# Extract file importance discussions (for section 6)
+bash .context/extract-conversation.sh key_files
+```
+
+These commands return relevant excerpts from the conversation to help identify what was discussed as next steps and which files were mentioned most frequently.
+
+## Your Sections
 
 ### 5. NEXT STEPS (Prioritized & Concrete)
 
@@ -185,6 +341,31 @@ List active bugs or blockers. For each:
 
 **Blockers:**
 - [ ] [Blocker description] - who can unblock?
+
+Example:
+```
+## 5. NEXT STEPS (Prioritized & Concrete)
+
+**Priority 1: [Critical/Blocking]**
+- [ ] Fix refresh token endpoint error at routes/auth.ts:67
+  - Why urgent: Blocks token refresh, users get logged out after 15min
+  - What it unblocks: Full auth flow testing
+  - Estimated complexity: Low (likely missing try/catch)
+  - File/line to start: routes/auth.ts:67
+
+**Priority 2: [Important]**
+- [ ] Implement auth middleware for protected routes
+  - Depends on: Priority 1 (need working refresh first)
+  - Success criteria: Protected endpoints return 401 without valid token
+  - File/line to start: middleware/auth.ts:1 (create new file)
+
+**Priority 3: [Nice to have]**
+- [ ] Add integration tests for complete login → refresh → protected route flow
+  - File/line to start: tests/integration/auth.test.ts:1
+
+**Blockers:**
+None currently
+```
 
 ---
 
@@ -207,9 +388,83 @@ src/
 - Key functions: [list with line numbers]
 - Status: [working/broken/in-progress]
 
+Example:
+```
+## 6. TECHNICAL CONTEXT
+
+#### Code Architecture
+
+**Project structure:**
+```
+src/
+├── routes/       - API endpoints (login, refresh, protected routes)
+├── services/     - Business logic (JWT generation, validation)
+├── models/       - Database models (User with refreshToken field)
+└── middleware/   - Request processors (auth validation)
+```
+
+**Key files and their roles:**
+
+**[routes/auth.ts](src/routes/auth.ts)**
+- What it does: Auth API endpoints (login, refresh)
+- Key functions:
+  - login() at line 12 - validates credentials, generates tokens ✅
+  - refresh() at line 67 - exchanges refresh for new access token ❌ (broken)
+- Status: in-progress
+
+**[services/jwt.ts](src/services/jwt.ts)**
+- What it does: Token generation and verification
+- Key functions:
+  - generateToken(userId) at line 8 - creates access token ✅
+  - generateRefreshToken(userId) at line 15 - creates refresh token ✅
+  - verifyToken(token) at line 23 - validates token signature ✅
+- Status: working
+
+**[models/User.ts](src/models/User.ts)**
+- What it does: User database model with auth fields
+- Key fields: email, passwordHash, refreshToken (line 15)
+- Status: working
+```
+
 #### Data Models
 
 Document key data structures with their schemas.
+
+Example:
+```
+#### Data Models
+
+**User Model:**
+```typescript
+{
+  id: string (UUID)
+  email: string (unique)
+  passwordHash: string (bcrypt)
+  refreshToken?: string (nullable, stores current refresh token)
+  createdAt: Date
+  updatedAt: Date
+}
+```
+
+**JWT Access Token Payload:**
+```typescript
+{
+  userId: string
+  email: string
+  iat: number (issued at)
+  exp: number (expires at: iat + 15min)
+}
+```
+
+**JWT Refresh Token Payload:**
+```typescript
+{
+  userId: string
+  iat: number
+  exp: number (expires at: iat + 7days)
+}
+```
+```
 
 #### Environment & Setup
 
@@ -228,6 +483,31 @@ npm run dev
 - Applied migrations: [list]
 - Test data: [brief description]
 
+Example:
+```
+#### Environment & Setup
+
+**Required environment variables:**
+```bash
+JWT_SECRET=secret for signing access tokens (must be different from refresh secret)
+JWT_REFRESH_SECRET=secret for signing refresh tokens
+DATABASE_URL=postgres://localhost:5432/myapp
+PORT=3000
+```
+
+**Setup commands:**
+```bash
+npm install
+npm run migrate    # Apply database migrations
+npm run seed       # Optional: Load test data
+npm run dev        # Start dev server on port 3000
+```
+
+**Database state:**
+- Applied migrations: 001_create_users, 002_add_refresh_token_field
+- Test data: 3 test users with hashed passwords
+```
+
 #### Testing
 
 **How to test manually:**
@@ -239,6 +519,33 @@ curl -X POST http://localhost:3000/api/endpoint
 **Tests that need writing:**
 - [ ] Test description
 - [ ] Test description
+
+Example:
+```
+#### Testing
+
+**How to test manually:**
+```bash
+# Test login
+curl -X POST http://localhost:3000/api/login \
+  -H \"Content-Type: application/json\" \
+  -d '{\"email\":\"test@test.com\",\"password\":\"password123\"}'
+
+# Test refresh (use refreshToken from login response)
+curl -X POST http://localhost:3000/api/refresh \
+  -H \"Content-Type: application/json\" \
+  -d '{\"refreshToken\":\"eyJ...\"}'
+
+# Test protected route (use accessToken from login response)
+curl http://localhost:3000/api/protected \
+  -H \"Authorization: Bearer eyJ...\"
+```
+
+**Tests that need writing:**
+- [ ] Integration test: complete login → refresh → protected route flow
+- [ ] Unit test: jwt.verify() error handling
+- [ ] Unit test: expired token rejection
+```
 
 ---
 
@@ -259,6 +566,38 @@ curl -X POST http://localhost:3000/api/endpoint
 - [Quick fix or hack that needs proper solution]
   - Location: [file:line]
 
+Example:
+```
+## 7. IMPORTANT NOTES & GOTCHAS
+
+**Non-obvious behavior:**
+- jwt.verify() throws exception on invalid token (doesn't return null/false)
+  - Location: services/jwt.ts:23
+  - Why: jsonwebtoken library design - must wrap in try/catch
+
+- Token expiry format is strings like \"15m\", \"7d\" not milliseconds
+  - Location: services/jwt.ts:10
+  - Why: jsonwebtoken library convention
+
+**Performance considerations:**
+- jwt.verify() is synchronous and blocks event loop
+  - Mitigation: OK for <1000 req/s, use async verification for higher load
+
+**Security concerns:**
+- ⚠️ JWT_SECRET and JWT_REFRESH_SECRET must be different values (HIGH)
+  - If same, compromised access token can be used as refresh token
+  - Location: Check .env file
+
+- ⚠️ Refresh tokens stored in plain text in DB (MEDIUM)
+  - Consider hashing refresh tokens like passwords
+  - Mitigation: Using secure connection, DB access controlled
+
+**Technical debt:**
+- No token rotation on refresh (same refresh token reused)
+  - Location: routes/auth.ts:67
+  - TODO: Implement refresh token rotation for better security
+```
+
 ---
 
 ### 8. COGNITIVE LOAD HELPERS
@@ -277,9 +616,111 @@ curl -X POST http://localhost:3000/api/endpoint
 **What takes longest to understand:**
 - [Aspect that requires most mental effort]
 
+Example:
+```
+## 8. COGNITIVE LOAD HELPERS
+
+**If I could only tell you 3 things:**
+1. Token refresh is broken at routes/auth.ts:67 - this is the critical blocker preventing the auth flow from working
+2. jwt.verify() throws exceptions on invalid tokens - must wrap in try/catch, not if/else checks
+3. Access tokens are stateless (no DB lookup) but refresh tokens are stateful (stored in DB) - this is intentional for the security/performance trade-off
+
+**Common misconceptions:**
+- ❌ You might think: JWT middleware should be applied at app level to protect all routes
+- ✅ Reality: App-level middleware creates circular dependency (auth routes need to run before tokens exist). Use route-specific middleware instead.
+
+- ❌ You might think: jwt.verify() returns null/false on invalid token
+- ✅ Reality: It throws TokenExpiredError or JsonWebTokenError - must try/catch
+
+**What takes longest to understand:**
+- The difference between access token flow (stateless, fast, short-lived) and refresh token flow (stateful, DB check, long-lived) and why both are needed
+```
+
 ---
 
+## Output Format
+
+Return ONLY the markdown text for sections 5-8:
+
+```
+## 5. NEXT STEPS (Prioritized & Concrete)
+
+[Content with prioritized tasks using conversation context]
+
+## 6. TECHNICAL CONTEXT
+
+[Content with architecture, files, setup, testing]
+
+## 7. IMPORTANT NOTES & GOTCHAS
+
+[Content with non-obvious behavior, gotchas]
+
+## 8. COGNITIVE LOAD HELPERS
+
+[Content with top 3 things, misconceptions]
+```
+
+## Critical Rules
+
+- Use helper script to extract next steps and file importance from conversation
+- Next steps must be ACTIONABLE: specific file, line number, what to do
+- Key files must include LINE NUMBERS and status indicators (✅❌🔄)
+- Gotchas should focus on non-obvious behavior that causes problems
+- Cognitive load helpers should prioritize the hardest concepts to understand
+- Return ONLY your sections, no preamble"
+````
+
+### Agent 3: RESUME Builder (Sections 9-12)
+
+````
+Task tool parameters:
+
+subagent_type: "general-purpose"
+description: "Agent 3: RESUME sections 9-12"
+model: "haiku"
+run_in_background: true
+prompt: "You are Agent 3 of 6 creating comprehensive handoff documentation. Write ONLY sections 9-12 of RESUME.md (section 9 is just cross-references).
+
+## Your Sections
+
 ### 9. CROSS-REFERENCES
+
+Standard reference section pointing to diagnostic logs:
+
+```
+## 9. CROSS-REFERENCES
+
+**For detailed context, see:**
+- **.context/failures.log** - Chronological record of failed approaches with root causes
+- **.context/decisions.log** - Architectural decisions with rationale and trade-offs
+- **.context/learnings.log** - Key insights, patterns, and mental model refinements
+
+**These logs are loaded lazily during resume - you don't need to read them unless:**
+- You're about to try a new approach (check failures.log first)
+- You're questioning a design choice (check decisions.log for rationale)
+- You need deep insights on system behavior (check learnings.log)
+```
+
+---
+
+### 10-12. PLACEHOLDER SECTIONS
+
+These sections are reserved for future expansion. For now, include a note:
+
+```
+## 10-12. RESERVED
+
+Reserved for future handoff enhancements. Current handoff captures all essential context in sections 1-9 plus diagnostic logs.
+```
+
+---
+
+## Output Format
+
+Return ONLY the markdown text for sections 9-12:
+
+```
+## 9. CROSS-REFERENCES
 
 **For detailed context, see:**
 - **.context/failures.log** - Chronological record of failed approaches with root causes
@@ -291,72 +732,46 @@ curl -X POST http://localhost:3000/api/endpoint
 - You're questioning a design choice (check decisions.log for rationale)
 - You need deep insights on system behavior (check learnings.log)
 
----
+## 10-12. RESERVED
 
-## Execution Steps
-
-1. **Analyze the current project state:**
-   - Review recent git history: `git log --oneline -20`
-   - Check file modifications: `git status`
-   - Understand current working state
-
-2. **Build the mental model:**
-   - How does this system work?
-   - What's the data flow?
-   - What assumptions are being made?
-
-3. **Create the RESUME.md file:**
-   - Write each section thoroughly
-   - Be specific with file paths and line numbers
-   - Focus on HOW things work, not just WHAT exists
-   - Reference .context/ logs for detailed analysis
-
-4. **Confirm completion:**
-   - Show summary of what was captured
-   - Report file location
-   - List sections included
-
----
-
-## Quality Guidelines
-
-### Preserve Mental Models
-Document HOW things work, not just WHAT exists:
-- ❌ "Token validation middleware exists"
-- ✅ "When a request comes in, middleware extracts Bearer token, verifies signature, attaches user ID to req.user"
-
-### Be Specific and Actionable
-- Include file paths: `src/auth.ts:45`
-- Include exact commands: `npm run test:auth`
-- Include reproduction steps with expected vs actual
-
-### Make Assumptions Explicit
-- ❌ "Users have unique emails"
-- ✅ "ASSUMPTION: Users have unique emails (verified by UNIQUE constraint on users.email)"
-
-### Reference, Don't Duplicate
-Since other agents handle failures, decisions, and learnings:
-- Mention that failed approaches exist
-- Link to .context/failures.log for details
-- Focus your energy on current state and next steps
-
----
-
-Now execute: Create RESUME.md following the structure above."
+Reserved for future handoff enhancements. Current handoff captures all essential context in sections 1-9 plus diagnostic logs.
 ```
 
-### Agent 2: Failure Analyzer
+## Critical Rules
 
-```
+- Section 9 is always the same cross-reference format
+- Sections 10-12 are placeholders for now
+- Return ONLY your sections, no preamble"
+````
+
+### Agent 4: Failure Analyzer
+
+````
+Task tool parameters:
+
 subagent_type: "general-purpose"
-description: "Analyze failures → .context/failures.log"
-model: "sonnet"
+description: "Agent 4: failures.log"
+model: "haiku"
 run_in_background: true
-prompt: "You are Agent 2 of 4 in a parallel handoff creation system. Your job is to create .context/failures.log that documents every failed approach with deep root cause analysis.
+prompt: "You are Agent 4 of 6 in a parallel handoff creation system. Your job is to create .context/failures.log that documents every failed approach with deep root cause analysis.
+
+## Accessing Conversation History
+
+Use the shared helper script to extract conversation context:
+
+```bash
+# Extract failed approaches and error patterns (for failures analysis)
+bash .context/extract-conversation.sh failures
+
+# Extract error messages (for specific error details)
+bash .context/extract-conversation.sh errors
+```
+
+These commands use optimized grep+jq patterns to quickly extract relevant conversation excerpts about what didn't work and why.
 
 ## Your Role
 
-Analyze the conversation history and codebase to identify:
+Analyze the conversation history (using helper script) and codebase to identify:
 - What approaches were tried but failed
 - Exact error messages encountered
 - Root causes (not just symptoms)
@@ -394,7 +809,7 @@ Failed approaches are discoveries, not mistakes. Each failure eliminated a dead 
 
 **Error Encountered:**
 ```
-[EXACT error message - copy/paste, don't paraphrase]
+[EXACT error message from conversation - use helper script to extract]
 [Include stack trace if relevant]
 ```
 
@@ -404,13 +819,13 @@ Failed approaches are discoveries, not mistakes. Each failure eliminated a dead 
 - Assumption: [What did I think would happen?]
 
 **Root Cause:**
-[Not just "it didn't work" - WHY didn't it work?]
+[Not just \"it didn't work\" - WHY didn't it work?]
 [Use 5 Whys if needed to get to fundamental issue]
 
 Example:
-- Surface: "Middleware threw error"
-- One level down: "JWT verification failed"
-- Root cause: "jwt.verify() throws exceptions on invalid tokens instead of returning null, and no try/catch existed"
+- Surface: \"Middleware threw error\"
+- One level down: \"JWT verification failed\"
+- Root cause: \"jwt.verify() throws exceptions on invalid tokens instead of returning null, and no try/catch existed\"
 
 **What I Learned:**
 [Key insight from this failure - what does this teach about the system?]
@@ -428,7 +843,7 @@ Example:
 
 ---
 
-[Repeat for each failure...]
+[Repeat for each failure found in conversation using helper script...]
 
 ---
 
@@ -450,14 +865,15 @@ After documenting individual failures, add analysis section:
 
 ## Execution Steps
 
-1. **Review conversation history thoroughly:**
-   - Look for error messages
-   - Identify approaches that were abandoned
-   - Find mentions of "didn't work", "failed", "error"
+1. **Use helper script to extract failures from conversation:**
+   ```bash
+   bash .context/extract-conversation.sh failures
+   bash .context/extract-conversation.sh errors
+   ```
 
-2. **For each failure, reconstruct:**
+2. **For each failure found, reconstruct:**
    - What was the actual code/approach?
-   - What was the exact error?
+   - What was the exact error? (from helper script output)
    - What was the root cause?
    - What was learned?
 
@@ -465,54 +881,63 @@ After documenting individual failures, add analysis section:
    - Do certain types of failures recur?
    - What system behaviors caused confusion?
 
-4. **Create .context/failures.log:**
-   - Document chronologically
-   - Be forensically detailed
-   - Focus on ROOT CAUSES not symptoms
-   - Include exact error messages
-   - Explain mental model corrections
+4. **Create .context/ directory and failures.log:**
+   ```bash
+   mkdir -p .context
+   # Write failures.log content
+   ```
 
 5. **Report completion:**
    - Count of failures documented
    - Key patterns identified
-   - File location
 
 ---
 
 ## Quality Guidelines
 
 ### Exact Error Messages
-❌ "Got an auth error"
-✅ "TokenExpiredError: jwt expired at verify (node_modules/jsonwebtoken/verify.js:147)"
+Use helper script to get ACTUAL errors from conversation:
+❌ \"Got an auth error\"
+✅ \"TokenExpiredError: jwt expired at verify (node_modules/jsonwebtoken/verify.js:147)\"
 
 ### Root Causes Not Symptoms
-❌ "Endpoint returned 500"
-✅ "jwt.verify() throws on invalid token, no try/catch exists, exception bubbles up to Express default handler"
+❌ \"Endpoint returned 500\"
+✅ \"jwt.verify() throws on invalid token, no try/catch exists, exception bubbles up to Express default handler\"
 
 ### Mental Model Corrections
-❌ "Approach didn't work"
-✅ "Expected: jwt.verify() returns null on invalid token. Reality: It throws exception requiring try/catch"
-
-### Preventive Guidance
-Include why retry would fail and what alternative to try instead.
+❌ \"Approach didn't work\"
+✅ \"Expected: jwt.verify() returns null on invalid token. Reality: It throws exception requiring try/catch\"
 
 ---
 
-Now execute: Create .context/failures.log with comprehensive failure analysis."
-```
+Now execute: Create .context/failures.log with comprehensive failure analysis using helper script to extract conversation context."
+````
 
-### Agent 3: Decision Tracker
+### Agent 5: Decision Tracker
 
-```
+````
+Task tool parameters:
+
 subagent_type: "general-purpose"
-description: "Track decisions → .context/decisions.log"
-model: "sonnet"
+description: "Agent 5: decisions.log"
+model: "haiku"
 run_in_background: true
-prompt: "You are Agent 3 of 4 in a parallel handoff creation system. Your job is to create .context/decisions.log that documents architectural and technical decisions with full rationale.
+prompt: "You are Agent 5 of 6 in a parallel handoff creation system. Your job is to create .context/decisions.log that documents architectural and technical decisions with full rationale.
+
+## Accessing Conversation History
+
+Use the shared helper script to extract conversation context:
+
+```bash
+# Extract architectural decisions from conversation (for decisions analysis)
+bash .context/extract-conversation.sh decisions
+```
+
+This command uses optimized grep+jq patterns to quickly extract relevant conversation excerpts about what was decided and why.
 
 ## Your Role
 
-Analyze the conversation and code to identify:
+Analyze the conversation (using helper script) and code to identify:
 - Key technical and architectural decisions
 - What options were considered
 - Why specific choices were made
@@ -569,10 +994,7 @@ Understanding WHY decisions were made prevents future agents from:
 **Why Rejected:**
 [Specific reason this wasn't chosen]
 
-### Option B: [Name]
-[Same structure...]
-
-### Option C: [Name] ✅ CHOSEN
+### Option B: [Name] ✅ CHOSEN
 **Description:** [What this option involves]
 **Pros:**
 - [Advantage 1]
@@ -583,7 +1005,7 @@ Understanding WHY decisions were made prevents future agents from:
 - [Disadvantage 2 - how we're mitigating]
 
 **Why Chosen:**
-[Specific rationale for this choice]
+[Specific rationale for this choice from conversation]
 [What factors were most important?]
 
 **Trade-offs Accepted:**
@@ -602,7 +1024,7 @@ Understanding WHY decisions were made prevents future agents from:
 
 ---
 
-[Repeat for each decision...]
+[Repeat for each decision found in conversation using helper script...]
 
 ---
 
@@ -612,42 +1034,29 @@ Document how decisions relate:
 
 **Decision Tree:**
 ```
-Decision #1 (Auth: JWT vs Sessions)
+Decision #1 (example)
     ↓ requires
-Decision #3 (Token Storage: DB vs In-Memory)
+Decision #2 (example)
     ↓ enables
-Decision #5 (Mobile Client Support)
+Decision #3 (example)
 ```
 
 **Conflicting Decisions:**
 [Are there tensions between decisions?]
 [How are conflicts being managed?]
-
----
-
-## Evolution of Decisions
-
-**Superseded Decisions:**
-
-### [Original Decision] → [New Decision]
-**When Changed:** [Date]
-**Why Changed:** [What new information prompted the change?]
-**Migration:** [How are we handling the transition?]
-
 ```
 
 ---
 
 ## Execution Steps
 
-1. **Review conversation for decision points:**
-   - Look for discussions of alternatives
-   - Find comparisons of approaches
-   - Identify trade-off discussions
-   - Note explicit choices made
+1. **Use helper script to extract decisions from conversation:**
+   ```bash
+   bash .context/extract-conversation.sh decisions
+   ```
 
-2. **For each decision, document:**
-   - What options were considered
+2. **For each decision found, document:**
+   - What options were considered (extract from conversation)
    - What factors influenced the choice
    - What trade-offs were accepted
    - What this enables/constrains
@@ -655,58 +1064,70 @@ Decision #5 (Mobile Client Support)
 3. **Analyze relationships:**
    - Do decisions depend on each other?
    - Are there conflicts or tensions?
-   - Have decisions evolved?
 
 4. **Create .context/decisions.log:**
-   - Use clear decision statements
-   - Provide full rationale
-   - Document all alternatives
-   - Explain trade-offs explicitly
+   ```bash
+   mkdir -p .context
+   # Write decisions.log content
+   ```
 
 5. **Report completion:**
    - Count of decisions documented
    - Key dependencies noted
-   - File location
 
 ---
 
 ## Quality Guidelines
 
 ### Clear Decision Statements
-❌ "Using JWT"
-✅ "Decision: Use JWT tokens instead of server-side sessions for API authentication"
+Use conversation context from helper script:
+❌ \"Using JWT\"
+✅ \"Decision: Use JWT tokens instead of server-side sessions for API authentication\"
 
 ### Full Rationale
-Include WHY, not just WHAT:
+Include WHY from conversation, not just WHAT:
 - What problem does this solve?
 - Why this option over alternatives?
 - What factors were most important?
 
 ### Explicit Trade-offs
-❌ "JWT is better"
-✅ "JWT enables stateless scaling but can't be invalidated before expiry. Mitigating with 15min expiry + refresh tokens."
-
-### Rejected Alternatives
-Document why other options weren't chosen:
-"Sessions rejected because: Requires sticky sessions or Redis, adds operational complexity"
+❌ \"JWT is better\"
+✅ \"JWT enables stateless scaling but can't be invalidated before expiry. Mitigating with 15min expiry + refresh tokens.\"
 
 ---
 
-Now execute: Create .context/decisions.log with comprehensive decision documentation."
-```
+Now execute: Create .context/decisions.log with comprehensive decision documentation using helper script to extract conversation context."
+````
 
-### Agent 4: Insight Extractor
+### Agent 6: Insight Extractor
 
-```
+````
+Task tool parameters:
+
 subagent_type: "general-purpose"
-description: "Extract insights → .context/learnings.log"
-model: "sonnet"
+description: "Agent 6: learnings.log"
+model: "haiku"
 run_in_background: true
-prompt: "You are Agent 4 of 4 in a parallel handoff creation system. Your job is to create .context/learnings.log that extracts deep insights and patterns from the work.
+prompt: "You are Agent 6 of 6 in a parallel handoff creation system. Your job is to create .context/learnings.log that extracts deep insights and patterns from the work.
+
+## Accessing Conversation History
+
+Use the shared helper script to extract conversation context:
+
+```bash
+# Extract gotchas and warnings (for learnings/insights)
+bash .context/extract-conversation.sh gotchas
+
+# Can also reference failures and decisions for insights
+bash .context/extract-conversation.sh failures
+bash .context/extract-conversation.sh decisions
+```
+
+These commands help identify non-obvious patterns and insights discussed in the conversation.
 
 ## Your Role
 
-Analyze the conversation and work to identify:
+Analyze the conversation (using helper script) and work to identify:
 - Key insights about how the system works
 - Non-obvious patterns discovered
 - Mental model refinements
@@ -746,7 +1167,7 @@ This log preserves that hard-won understanding.
 **Discovery Date:** [When realized]
 
 **The Insight:**
-[Clear statement of what was learned]
+[Clear statement of what was learned from conversation]
 
 **Why This Matters:**
 [How does this insight change understanding?]
@@ -767,20 +1188,23 @@ This log preserves that hard-won understanding.
 ```
 
 **Related Concepts:**
-- [Connected to Learning #X]
-- [Builds on Decision #Y]
+- [Connected to other learnings or decisions]
+
+---
+
+[More learnings from conversation using helper script...]
 
 ---
 
 ## Category: Mental Model Refinements
 
-### Learning #2: [Model Evolution]
+### Learning #N: [Model Evolution]
 
 **Initial Mental Model:**
 [What I thought was happening]
 
 **Refined Mental Model:**
-[What's actually happening]
+[What's actually happening - from conversation insights]
 
 **What Changed My Understanding:**
 [What evidence led to refinement?]
@@ -788,35 +1212,18 @@ This log preserves that hard-won understanding.
 **Critical Distinction:**
 [What's the key difference between models?]
 
-Example:
-```
-Initial Model: "JWT middleware validates tokens globally"
-
-Refined Model: "JWT middleware would create circular dependency
-if applied globally because auth routes need to run before tokens
-exist. Route-specific middleware solves this."
-
-What Changed: Failed attempt at app-level middleware revealed
-the circular dependency issue.
-
-Critical Distinction: The difference between protecting all routes
-by default (push model) vs protecting specific routes as needed
-(pull model).
-```
-
 ---
 
 ## Category: Non-Obvious Patterns
 
-### Learning #3: [Pattern Name]
+### Learning #N: [Pattern Name]
 
 **Pattern Observed:**
-[Description of recurring pattern or behavior]
+[Description of recurring pattern from conversation]
 
 **Where This Appears:**
 - [Location 1]
 - [Location 2]
-- [Location 3]
 
 **Why This Pattern Exists:**
 [Underlying reason for this pattern]
@@ -826,139 +1233,108 @@ by default (push model) vs protecting specific routes as needed
 
 ---
 
-## Category: Tribal Knowledge
-
-### Learning #4: [Hidden Knowledge]
-
-**What Isn't Documented:**
-[Thing that only experienced developers know]
-
-**Where This Matters:**
-[Situations where this knowledge is critical]
-
-**How to Discover This:**
-[How would someone learn this without this log?]
-[Probably: painfully, through trial and error]
-
-**Examples of Getting Bitten:**
-[Scenarios where not knowing this causes problems]
-
----
-
 ## Meta-Patterns
 
 ### Cognitive Themes
 
 **What Was Hardest to Understand:**
-[Aspects that took longest to grasp]
-[Why were these difficult?]
+[Aspects that took longest to grasp from conversation]
 
 **Most Valuable Insights:**
 [Top 3 learnings that had biggest impact]
 
-**Knowledge Gaps Remaining:**
-[What do we still not fully understand?]
-[What needs more investigation?]
-
-### System Characteristics
-
-**This System Tends To:**
-[Behavioral tendencies observed]
-[How does the system behave under different conditions?]
-
 **Common Gotchas:**
-[Repeated pitfalls or surprises]
-
-**Power User Tips:**
-[Advanced techniques discovered]
-[Shortcuts or patterns that work well]
-
----
-
-## Cross-References
-
-**Learnings From Failures:**
-[Which insights came from failures.log entries?]
-
-**Learnings That Informed Decisions:**
-[Which insights led to decisions in decisions.log?]
-
+[Repeated pitfalls from conversation using helper script]
 ```
 
 ---
 
 ## Execution Steps
 
-1. **Deep analysis of conversation:**
-   - What insights emerged over time?
+1. **Use helper script to extract insights from conversation:**
+   ```bash
+   bash .context/extract-conversation.sh gotchas
+   bash .context/extract-conversation.sh failures
+   bash .context/extract-conversation.sh decisions
+   ```
+
+2. **Identify patterns from extracted content:**
+   - What insights emerged?
    - What was surprising or non-obvious?
    - What took effort to understand?
-   - What "aha!" moments occurred?
-
-2. **Identify patterns:**
-   - Are there recurring themes?
-   - What system behaviors are notable?
-   - What knowledge isn't documented elsewhere?
 
 3. **Extract mental model evolution:**
    - How did understanding change?
    - What corrections were made?
-   - What distinctions matter?
 
-4. **Capture tribal knowledge:**
-   - What would only experienced devs know?
-   - What causes problems if unknown?
-   - What isn't in official docs?
+4. **Create .context/learnings.log:**
+   ```bash
+   mkdir -p .context
+   # Write learnings.log content
+   ```
 
-5. **Create .context/learnings.log:**
-   - Organize by category
-   - Focus on NON-OBVIOUS insights
-   - Explain practical implications
-   - Show how insights connect
-
-6. **Report completion:**
+5. **Report completion:**
    - Count of learnings captured
    - Key patterns identified
-   - File location
 
 ---
 
 ## Quality Guidelines
 
 ### Focus on Non-Obvious
-Don't document obvious facts:
-❌ "JWT is used for authentication"
-✅ "JWT verification is synchronous and blocks event loop - OK for <1000 req/s, problematic above that"
+Don't document obvious facts from conversation:
+❌ \"JWT is used for authentication\"
+✅ \"JWT verification is synchronous and blocks event loop - OK for <1000 req/s, problematic above that\"
 
 ### Explain Implications
 Connect insights to practice:
-❌ "Tokens expire after 15 minutes"
-✅ "15min expiry means mobile apps must handle background refresh, or users get logged out mid-session"
+❌ \"Tokens expire after 15 minutes\"
+✅ \"15min expiry means mobile apps must handle background refresh, or users get logged out mid-session\"
 
 ### Show Mental Model Evolution
-Document how understanding changed:
-"Initial Model: X → Refined Model: Y → Key Distinction: Z"
-
-### Preserve Hard-Won Knowledge
-Focus on insights that took time/effort to discover.
+Document how understanding changed from conversation:
+\"Initial Model: X → Refined Model: Y → Key Distinction: Z\"
 
 ---
 
-Now execute: Create .context/learnings.log with deep insights and patterns."
-```
+Now execute: Create .context/learnings.log with deep insights and patterns using helper script to extract conversation context."
+````
 
 ---
 
-## Step 3: Wait for All Agents to Complete
+## Step 3: Wait for All Agents & Assemble
 
-Use TaskOutput to retrieve results from all 4 background agents:
+After spawning all 6 agents in parallel, wait for their outputs using TaskOutput tool:
 
 ```
-TaskOutput for Agent 1 (Resume Builder)
-TaskOutput for Agent 2 (Failure Analyzer)
-TaskOutput for Agent 3 (Decision Tracker)
-TaskOutput for Agent 4 (Insight Extractor)
+agent1_output = TaskOutput(agent1_task_id, block=true, timeout=120000)
+agent2_output = TaskOutput(agent2_task_id, block=true, timeout=120000)
+agent3_output = TaskOutput(agent3_task_id, block=true, timeout=120000)
+agent4_output = TaskOutput(agent4_task_id, block=true, timeout=120000)
+agent5_output = TaskOutput(agent5_task_id, block=true, timeout=120000)
+agent6_output = TaskOutput(agent6_task_id, block=true, timeout=120000)
 ```
+
+Then assemble RESUME.md from 3 parts using Write tool:
+
+```markdown
+# RESUME.md
+
+{agent1_output content}
+
+{agent2_output content}
+
+{agent3_output content}
+
+---
+
+*Comprehensive handoff created by /reheat:save with 6-agent parallel architecture*
+*For quick handoffs on straightforward tasks, use /reheat:save-quick*
+```
+
+Write the assembled file to RESUME.md in project root.
+
+Note: Agents 4, 5, 6 create their own files (.context/failures.log, .context/decisions.log, .context/learnings.log) - no assembly needed.
 
 ---
 
@@ -991,15 +1367,21 @@ After all agents complete, perform coordinator analysis:
 Provide comprehensive summary:
 
 ```
-✅ Created comprehensive handoff documentation with multi-agent analysis
+✅ Created comprehensive handoff documentation with 6-agent parallel analysis
 
 **Primary Document:**
-- RESUME.md (X sections, Y KB)
+- RESUME.md (12 sections, X KB)
 
 **Diagnostic Logs:**
 - .context/failures.log (N failures analyzed)
 - .context/decisions.log (M decisions documented)
 - .context/learnings.log (K insights captured)
+
+**Architecture:**
+- 3 Haiku agents created RESUME.md sections in parallel
+- 3 Haiku agents created diagnostic logs in parallel
+- All agents used .context/extract-conversation.sh for context
+- Total time: ~1-1.5 minutes (vs 2-3 minutes with old 4-agent architecture)
 
 **Cross-Reference Patterns Detected:**
 - [Pattern 1: e.g., "3 failures led to Decision #2 about token handling"]
@@ -1007,11 +1389,11 @@ Provide comprehensive summary:
 - [Pattern 3: e.g., "Authentication failures clustered around middleware lifecycle"]
 
 **What Was Captured:**
-- Current state and 60% progress estimate
+- Current state and progress estimate
 - Mental model of system data flow
-- 3 failed approaches with root causes
-- 5 architectural decisions with trade-offs
-- 7 key insights about non-obvious behavior
+- Failed approaches with root causes
+- Architectural decisions with trade-offs
+- Key insights about non-obvious behavior
 - Prioritized next steps with file:line references
 
 **To Resume:**
@@ -1025,9 +1407,12 @@ Commit RESUME.md and .context/ to git, or share with any AI agent for seamless c
 
 ## Remember
 
-This multi-agent approach provides:
-- **Parallel execution** - 4x faster than sequential
+This 6-agent approach provides:
+- **Parallel execution** - 2x faster than old 4-agent sequential RESUME creation
 - **Specialized focus** - Each agent optimizes for their domain
+- **Consistent architecture** - Matches save-quick's 3-agent RESUME pattern
+- **Performance** - All agents use Haiku model for 3-5x faster inference
+- **Helper script** - Optimized JSONL extraction with ripgrep auto-detection
 - **Rich context** - Primary doc + 3 diagnostic logs
 - **Pattern detection** - Coordinator spots connections across findings
 - **Lazy loading** - Resume reads RESUME.md first, only loads .context/ logs when needed

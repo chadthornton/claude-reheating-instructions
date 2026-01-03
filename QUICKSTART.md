@@ -5,13 +5,18 @@ Get up and running with Reheating Instructions in 2 minutes.
 ## Installation
 
 ```bash
-cd /path/to/claude-reheating-instructions
-claude code --plugin install .
+# Navigate to the plugin directory
+cd /path/to/claude-reheat
+
+# Add as local marketplace and install
+claude plugin marketplace add $(pwd)
+claude plugin install reheat@reheat-local
 ```
 
-Or if you're already in the directory:
+Or use absolute path:
 ```bash
-claude code --plugin install .
+claude plugin marketplace add /full/path/to/claude-reheat
+claude plugin install reheat@reheat-local
 ```
 
 ## Basic Usage
@@ -105,7 +110,7 @@ The quality of your handoff determines how well the next agent can continue. Whe
 
 **"Plugin not found"**
 - Make sure you're in the plugin directory when installing
-- Try: `claude code --plugin install /full/path/to/claude-reheating-instructions`
+- Try: `claude plugin marketplace add /full/path/to/claude-reheat && claude plugin install reheat@reheat-local`
 
 **"Skill not working"**
 - Check that all skill files exist in the `skills/` directory
@@ -118,7 +123,7 @@ The quality of your handoff determines how well the next agent can continue. Whe
 ## Next Steps
 
 - Read the full [README.md](README.md) for detailed documentation
-- Check out the [example handoff](examples/HANDOFF-EXAMPLE.md) to see what good output looks like
+- Check out the [example resume](examples/RESUME-EXAMPLE.md) to see what good output looks like
 - See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to improve the plugin
 
 ---
