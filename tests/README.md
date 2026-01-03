@@ -18,10 +18,11 @@ We wrote tests because we fixed critical bugs:
 
 ```
 tests/
-├── test-runner.sh           # Main test framework
-├── test_path_encoding.sh    # Tests path encoding logic (Issue #2 fix)
-├── test_extraction.sh       # Tests extraction functions
-├── test_edge_cases.sh       # Tests error handling
+├── run-tests.sh             # Main test suite (15 tests, self-contained)
+├── test-runner.sh           # Test framework (defines test functions)
+├── test_path_encoding.sh    # Individual test: path encoding
+├── test_extraction.sh       # Individual test: extraction functions
+├── test_edge_cases.sh       # Individual test: error handling
 ├── fixtures/                # Sample test data
 │   └── sample-conversation.jsonl
 └── README.md               # This file
@@ -29,16 +30,20 @@ tests/
 
 ## Running Tests
 
-### Run all tests:
+### Run all tests (recommended):
 ```bash
 cd tests
-./test-runner.sh
+./run-tests.sh
 ```
 
-### Run specific test file:
+This runs 15 tests covering path encoding, extraction functions, grep/ripgrep compatibility, and error handling.
+
+### Run specific test category (advanced):
 ```bash
 cd tests
-./test_path_encoding.sh
+./test_path_encoding.sh     # Just path encoding tests
+./test_extraction.sh         # Just extraction tests
+./test_edge_cases.sh         # Just edge case tests
 ```
 
 ## Understanding the Output
@@ -56,9 +61,10 @@ Summary at the end:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Test Summary
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Total:  25
-Passed: 23
-Failed: 2
+Total:  15
+Passed: 15
+
+All tests passed!
 ```
 
 ## Test Categories
@@ -77,7 +83,7 @@ echo "/Users/john doe/project" | tr '/' '-'
 **What we fixed:**
 ```bash
 # NEW METHOD (fixed):
-echo "/Users/john doe/project" | sed 's/[^a-zA-Z0-9_-]/_/g'
+echo "/Users/john doe/project" | sed 's/[^-a-zA-Z0-9_]/_/g'
 # Result: "_Users_john_doe_project"
 # ✅ No spaces! Shell-safe!
 ```

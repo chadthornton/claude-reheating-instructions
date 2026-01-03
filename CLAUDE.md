@@ -80,6 +80,28 @@ Both resume modes spawn a fresh subagent to ensure proper context isolation.
 
 ## Development Commands
 
+### Running Tests
+
+The plugin includes a comprehensive test suite for the helper script:
+
+```bash
+# Run all tests (15 tests covering path encoding, extraction, compatibility)
+cd tests
+./run-tests.sh
+
+# Expected output: All 15 tests passing
+# Tests verify: path encoding with spaces/special chars, extraction functions,
+# grep/ripgrep compatibility, error handling
+```
+
+**When to run tests:**
+- Before committing changes
+- After modifying `scripts/extract-conversation.sh`
+- When debugging issues
+- After installing/updating the plugin
+
+See `tests/README.md` for complete testing documentation.
+
 ### Testing the Plugin
 
 ```bash
@@ -110,13 +132,23 @@ All save commands automatically archive existing RESUME.md files:
 
 ## Key Files
 
+**Core Plugin:**
 - `.claude-plugin/plugin.json` - Plugin manifest, defines skills path
 - `skills/save/SKILL.md` - Comprehensive save (multi-agent orchestration)
 - `skills/save-quick/SKILL.md` - Quick save (single streamlined handoff)
 - `skills/resume/SKILL.md` - Adaptive resume (analyzes and spawns appropriate subagent)
+- `scripts/extract-conversation.sh` - Helper script for conversation extraction
 - `hooks/auto-handoff.ts` - Reference implementation for session automation
+
+**Testing:**
+- `tests/run-tests.sh` - Main test suite (15 tests, all passing)
+- `tests/fixtures/sample-conversation.jsonl` - Test data
+- `tests/README.md` - Complete testing documentation
+
+**Documentation:**
 - `README.md` - Primary user documentation
 - `QUICKSTART.md` - 2-minute getting started guide
+- `CLAUDE.md` - This file (development guidance)
 
 ## Code Patterns
 
@@ -238,6 +270,13 @@ This informs the entire architecture:
 
 ### Testing Considerations
 
+**Automated Tests:**
+- Run `tests/run-tests.sh` before committing changes
+- All 15 tests must pass (path encoding, extraction, compatibility)
+- Tests verify critical fixes from code review
+- Add regression tests when fixing bugs
+
+**Manual Testing:**
 - Test with real projects of varying complexity
 - Verify archiving works correctly
 - Ensure parallel agents complete successfully
